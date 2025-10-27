@@ -1,16 +1,42 @@
+const getElement = (id) => document.getElementById(id);
+
 const elements = {
-  eventsList: document.getElementById('eventsList'),
-  eventsHistory: document.getElementById('eventsHistory'),
-  mySessionsList: document.getElementById('mySessionsList'),
-  myAppointmentsList: document.getElementById('myAppointmentsList'),
-  ownerAlerts: document.getElementById('ownerAlerts'),
-  calendarGrid: document.getElementById('calendarGrid'),
-  calendarRange: document.getElementById('calendarRange'),
-  skillFilter: document.getElementById('skillFilter'),
-  locationFilter: document.getElementById('locationFilter'),
-  activeMatches: document.getElementById('activeMatches'),
-  openSpots: document.getElementById('openSpots'),
-  communityTrend: document.getElementById('communityTrend'),
+  get eventsList() {
+    return getElement('eventsList');
+  },
+  get eventsHistory() {
+    return getElement('eventsHistory');
+  },
+  get mySessionsList() {
+    return getElement('mySessionsList');
+  },
+  get myAppointmentsList() {
+    return getElement('myAppointmentsList');
+  },
+  get ownerAlerts() {
+    return getElement('ownerAlerts');
+  },
+  get calendarGrid() {
+    return getElement('calendarGrid');
+  },
+  get calendarRange() {
+    return getElement('calendarRange');
+  },
+  get skillFilter() {
+    return getElement('skillFilter');
+  },
+  get locationFilter() {
+    return getElement('locationFilter');
+  },
+  get activeMatches() {
+    return getElement('activeMatches');
+  },
+  get openSpots() {
+    return getElement('openSpots');
+  },
+  get communityTrend() {
+    return getElement('communityTrend');
+  },
 };
 
 export { elements };
