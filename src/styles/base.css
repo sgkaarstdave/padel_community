@@ -120,14 +120,67 @@ main {
 
 .topbar {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.topbar__intro {
+  display: flex;
   flex-direction: column;
   gap: 12px;
-  align-items: flex-start;
+  min-width: 0;
 }
 
 .topbar h2 {
   font-size: 1.5rem;
   font-weight: 700;
+}
+
+.user-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px);
+}
+
+.user-menu__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  background: rgba(59, 130, 246, 0.25);
+  color: var(--text);
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.25);
+}
+
+.user-menu__avatar.is-image {
+  background: rgba(15, 23, 42, 0.75);
+  box-shadow: none;
+}
+
+.user-menu__details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.user-menu__details span:first-child {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stats-grid {

@@ -1,6 +1,7 @@
 import { setupNavigation, switchView } from './controllers/navigation.js';
 import { setupCalendarControls } from './controllers/calendar.js';
 import { createEventControllers } from './controllers/events.js';
+import { initializeAuth } from './controllers/auth.js';
 import {
   registerToggleHandler,
   registerOwnerHandlers,
@@ -85,29 +86,47 @@ const refreshUI = () => {
   updateStats();
 };
 
-const hydrate = () => {
-  setupNavigation();
-  switchView('my-appointments');
-  setupCalendarControls(renderCalendar);
-  bindFilters(() => {
-    renderEventsList();
-    renderEventsHistory();
-    updateStats();
-  });
-  renderPlaces();
-  setupLocationSelector();
+let hasBootstrapped = false;
+let formListenerAttached = false;
 
-  const { toggleParticipation, handleFormSubmit, startEditing, deleteEvent } =
-    createEventControllers({
-      refreshUI,
-      navigate: switchView,
+const bootstrapApplication = () => {
+  if (!hasBootstrapped) {
+    setupNavigation();
+    switchView('my-appointments');
+    setupCalendarControls(renderCalendar);
+    bindFilters(() => {
+      renderEventsList();
+      renderEventsHistory();
+      updateStats();
     });
+    renderPlaces();
+    setupLocationSelector();
 
-  registerToggleHandler(toggleParticipation);
-  registerOwnerHandlers({ onEdit: startEditing, onDelete: deleteEvent });
+    const { toggleParticipation, handleFormSubmit, startEditing, deleteEvent } =
+      createEventControllers({
+        refreshUI,
+        navigate: switchView,
+      });
+
+    registerToggleHandler(toggleParticipation);
+    registerOwnerHandlers({ onEdit: startEditing, onDelete: deleteEvent });
+
+    const form = document.getElementById('eventForm');
+    if (form && !formListenerAttached) {
+      form.addEventListener('submit', handleFormSubmit);
+      formListenerAttached = true;
+    }
+
+    hasBootstrapped = true;
+  }
+
   refreshUI();
-
-  document.getElementById('eventForm').addEventListener('submit', handleFormSubmit);
 };
 
-document.addEventListener('DOMContentLoaded', hydrate);
+document.addEventListener('DOMContentLoaded', () => {
+  initializeAuth({
+    onAuthenticated: () => {
+      bootstrapApplication();
+    },
+  });
+});
