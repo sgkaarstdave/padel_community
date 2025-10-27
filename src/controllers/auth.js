@@ -7,16 +7,17 @@ import {
   loginWithGoogleProfile,
 } from '../state/auth.js';
 import { initializeGoogleSignIn, extractProfileFromCredential } from '../utils/google.js';
+import { sanitizeText } from '../utils/text.js';
 
 const getDisplayName = (user) => {
   if (!user) {
     return '';
   }
   if (user.name) {
-    return user.name;
+    return sanitizeText(user.name);
   }
   if (user.email) {
-    return user.email.split('@')[0];
+    return sanitizeText(user.email.split('@')[0]);
   }
   return 'Padel Fan';
 };
@@ -140,7 +141,7 @@ const setupAuth = ({ onAuthenticated, onLogout } = {}) => {
       submitButton?.setAttribute('disabled', 'disabled');
       setMessage(messageElement, '', '');
       const formData = new FormData(registerForm);
-      const name = formData.get('name');
+      const name = sanitizeText(formData.get('name') || '');
       const email = formData.get('email');
       const password = formData.get('password');
       const confirmPassword = formData.get('confirmPassword');

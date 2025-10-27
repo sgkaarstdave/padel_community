@@ -1,4 +1,5 @@
 import { isActiveOrRecent } from '../utils/time.js';
+import { sanitizeText } from '../utils/text.js';
 
 const STORAGE_KEY = 'padel-community-events-v1';
 
@@ -125,15 +126,15 @@ const defaultEvents = () => {
     history.unshift({ timestamp: new Date().toISOString(), type: 'create' });
     return {
       id: `seed-${index}`,
-      title: entry.title,
-      location: entry.location,
+      title: sanitizeText(entry.title),
+      location: sanitizeText(entry.location),
       skill: entry.skill,
       capacity: entry.capacity,
       totalCost: entry.totalCost,
-      notes: entry.notes,
-      owner: entry.owner,
-      createdByName: entry.owner,
-      paymentLink: entry.paymentLink || '',
+      notes: sanitizeText(entry.notes),
+      owner: sanitizeText(entry.owner),
+      createdByName: sanitizeText(entry.owner),
+      paymentLink: sanitizeText(entry.paymentLink || ''),
       date: dateStr,
       time: timeStr,
       duration: entry.duration,
@@ -169,12 +170,20 @@ const loadEvents = () => {
             totalCost = 0;
           }
           totalCost = Math.max(0, Math.round(totalCost * 100) / 100);
-          const createdByName =
-            event.createdByName || (event.owner && event.owner !== 'Du' ? event.owner : '');
-          const owner =
-            event.createdByMe || !event.owner || event.owner !== 'Du' ? event.owner : 'Community';
+          const createdByName = sanitizeText(
+            event.createdByName || (event.owner && event.owner !== 'Du' ? event.owner : ''),
+          );
+          const owner = sanitizeText(
+            event.createdByMe || !event.owner || event.owner !== 'Du' ? event.owner : 'Community',
+          );
+          const title = sanitizeText(event.title || '');
+          const location = sanitizeText(event.location || '');
+          const notes = sanitizeText(event.notes || '');
+          const paymentLink = sanitizeText(event.paymentLink || '');
           return {
             ...event,
+            title,
+            location,
             owner,
             createdByName,
             attendees: Number(event.attendees) || 0,
@@ -183,8 +192,9 @@ const loadEvents = () => {
             totalCost,
             joined: Boolean(event.joined),
             history: event.history || [],
-            paymentLink: event.paymentLink || '',
+            paymentLink,
             createdByMe: Boolean(event.createdByMe),
+            notes,
           };
         })
         .filter((event) => isActiveOrRecent(event, now));
@@ -197,7 +207,16 @@ const loadEvents = () => {
 
 const saveEvents = (events) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+    const sanitizedEvents = events.map((event) => ({
+      ...event,
+      title: sanitizeText(event.title || ''),
+      location: sanitizeText(event.location || ''),
+      notes: sanitizeText(event.notes || ''),
+      owner: sanitizeText(event.owner || ''),
+      createdByName: sanitizeText(event.createdByName || ''),
+      paymentLink: sanitizeText(event.paymentLink || ''),
+    }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizedEvents));
   } catch (error) {
     console.warn('Lokale Speicherung deaktiviert', error);
   }

@@ -1,5 +1,6 @@
 import { loadEvents, saveEvents } from './storage.js';
 import { isActiveOrRecent } from '../utils/time.js';
+import { sanitizeText } from '../utils/text.js';
 
 const state = {
   events: loadEvents(),
@@ -9,12 +10,14 @@ const state = {
 
 const applyUserContext = (user) => {
   const userId = user?.id ?? null;
-  const displayName = user?.name || (user?.email ? user.email.split('@')[0] : '');
+  const displayName = sanitizeText(
+    user?.name || (user?.email ? user.email.split('@')[0] : ''),
+  );
   state.events = state.events.map((event) => {
     const createdBy = event.createdBy ?? null;
     const isMine = Boolean(userId && createdBy && createdBy === userId);
-    const preservedOwner = event.owner || '';
-    const recordedOwner = event.createdByName || '';
+    const preservedOwner = sanitizeText(event.owner || '');
+    const recordedOwner = sanitizeText(event.createdByName || '');
     const normalizedFallback = recordedOwner || (preservedOwner && preservedOwner !== 'Du' ? preservedOwner : 'Community');
     return {
       ...event,

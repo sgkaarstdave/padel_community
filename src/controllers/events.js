@@ -6,6 +6,7 @@ import {
   hasEventStarted,
   hasEventEnded,
 } from '../utils/time.js';
+import { sanitizeText } from '../utils/text.js';
 
 const CONFLICT_MESSAGE =
   'Die Session überschneidet sich mit einer anderen, der du bereits zugesagt hast.';
@@ -91,7 +92,7 @@ const createEventControllers = ({ refreshUI, navigate }) => {
     const formData = new FormData(form);
     const raw = Object.fromEntries(formData.entries());
 
-    const title = raw.title?.trim();
+    const title = sanitizeText(raw.title);
     if (!title) {
       window.alert('Bitte gib einen Titel für den Termin an.');
       return null;
@@ -100,9 +101,9 @@ const createEventControllers = ({ refreshUI, navigate }) => {
     const selectedLocation = raw.location;
     let locationValue = '';
     if (selectedLocation === '__custom__') {
-      locationValue = raw.customLocation?.trim() ?? '';
+      locationValue = sanitizeText(raw.customLocation) || '';
     } else {
-      locationValue = selectedLocation?.trim() ?? '';
+      locationValue = sanitizeText(selectedLocation) || '';
     }
     if (!locationValue) {
       window.alert('Bitte wähle einen Ort aus oder gib einen eigenen ein.');
@@ -125,7 +126,7 @@ const createEventControllers = ({ refreshUI, navigate }) => {
       return null;
     }
 
-    const deadlineValue = raw.deadline?.trim();
+    const deadlineValue = sanitizeText(raw.deadline);
     if (!deadlineValue) {
       window.alert('Bitte gib eine Zusagefrist an.');
       return null;
@@ -170,8 +171,8 @@ const createEventControllers = ({ refreshUI, navigate }) => {
       totalCost: normalizedTotalCost || 0,
       capacity: capacityValue,
       skill: raw.skill || 'Intermediate',
-      notes: raw.notes?.trim() ?? '',
-      paymentLink: raw.paymentLink?.trim() || '',
+      notes: sanitizeText(raw.notes ?? ''),
+      paymentLink: sanitizeText(raw.paymentLink || ''),
       deadline: deadlineValue,
     };
   };
@@ -301,8 +302,9 @@ const createEventControllers = ({ refreshUI, navigate }) => {
       }
 
       const currentUser = getCurrentUser();
-      const displayName =
-        currentUser?.name || (currentUser?.email ? currentUser.email.split('@')[0] : 'Du');
+      const displayName = sanitizeText(
+        currentUser?.name || (currentUser?.email ? currentUser.email.split('@')[0] : 'Du'),
+      );
 
       const updated = updateEventById(editingEventId, (event) => {
         if (!event.createdByMe) {
@@ -334,8 +336,9 @@ const createEventControllers = ({ refreshUI, navigate }) => {
     const createdAt = now.toISOString();
     const currentUser = getCurrentUser();
     const userId = currentUser?.id ?? null;
-    const displayName =
-      currentUser?.name || (currentUser?.email ? currentUser.email.split('@')[0] : 'Du');
+    const displayName = sanitizeText(
+      currentUser?.name || (currentUser?.email ? currentUser.email.split('@')[0] : 'Du'),
+    );
 
     const draft = {
       ...normalized,

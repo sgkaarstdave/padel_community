@@ -1,3 +1,5 @@
+import { sanitizeText } from '../utils/text.js';
+
 const USERS_KEY = 'padel-community-users-v1';
 const SESSION_KEY = 'padel-community-session-v1';
 
@@ -150,7 +152,7 @@ const requirePassword = (password) => {
 };
 
 const resolveDisplayName = ({ name, email }) => {
-  const trimmed = (name || '').trim();
+  const trimmed = sanitizeText(name || '');
   if (trimmed) {
     return trimmed;
   }
