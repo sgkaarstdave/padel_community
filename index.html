@@ -87,6 +87,14 @@
             <div id="eventsList" class="events-list"></div>
           </section>
 
+          <section class="panel panel--history">
+            <div class="panel__header">
+              <h3>Vergangene Sessions</h3>
+              <p class="muted">Letzte 14 Tage im Überblick</p>
+            </div>
+            <div id="eventsHistory" class="events-history"></div>
+          </section>
+
           <section class="panel calendar">
             <div class="panel__header">
               <h3>Kalender</h3>
@@ -143,7 +151,16 @@
               </label>
               <label>
                 Ort
-                <input type="text" name="location" placeholder="Padel Club Hamburg" required />
+                <select name="location" id="locationSelect" required></select>
+              </label>
+              <label class="full" id="customLocationWrapper" hidden>
+                Eigener Ort
+                <input
+                  type="text"
+                  name="customLocation"
+                  id="customLocationInput"
+                  placeholder="z. B. Padelhalle Barmbek"
+                />
               </label>
               <label>
                 Datum

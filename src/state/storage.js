@@ -1,3 +1,5 @@
+import { isActiveOrRecent } from '../utils/time.js';
+
 const STORAGE_KEY = 'padel-community-events-v1';
 
 const skillColors = {
@@ -120,28 +122,28 @@ const defaultEvents = () => {
       joinTime.setHours(joinTime.getHours() - (idx + 1) * 4);
       return { timestamp: joinTime.toISOString(), type: 'join' };
     });
-      history.unshift({ timestamp: new Date().toISOString(), type: 'create' });
-      return {
-        id: `seed-${index}`,
-        title: entry.title,
-        location: entry.location,
+    history.unshift({ timestamp: new Date().toISOString(), type: 'create' });
+    return {
+      id: `seed-${index}`,
+      title: entry.title,
+      location: entry.location,
       skill: entry.skill,
       capacity: entry.capacity,
-        totalCost: entry.totalCost,
-        notes: entry.notes,
-        owner: entry.owner,
-        paymentLink: entry.paymentLink || '',
-        date: dateStr,
-        time: timeStr,
-        duration: entry.duration,
-        deadline: deadline.toISOString().slice(0, 16),
-        attendees,
-        createdAt: new Date().toISOString(),
-        joined: false,
-        createdByMe: false,
-        history,
-      };
-    });
+      totalCost: entry.totalCost,
+      notes: entry.notes,
+      owner: entry.owner,
+      paymentLink: entry.paymentLink || '',
+      date: dateStr,
+      time: timeStr,
+      duration: entry.duration,
+      deadline: deadline.toISOString().slice(0, 16),
+      attendees,
+      createdAt: new Date().toISOString(),
+      joined: false,
+      createdByMe: false,
+      history,
+    };
+  });
 };
 
 const loadEvents = () => {
@@ -149,33 +151,36 @@ const loadEvents = () => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return parsed.map((event) => {
-        const capacity = Number(event.capacity) || 4;
-        const legacyPrice = Number(event.price);
-        let totalCost = Number(event.totalCost);
-        if (!Number.isFinite(totalCost) || totalCost <= 0) {
-          if (Number.isFinite(legacyPrice) && legacyPrice > 0) {
-            totalCost = legacyPrice * Math.max(1, capacity);
-          } else {
+      const now = new Date();
+      return parsed
+        .map((event) => {
+          const capacity = Number(event.capacity) || 4;
+          const legacyPrice = Number(event.price);
+          let totalCost = Number(event.totalCost);
+          if (!Number.isFinite(totalCost) || totalCost <= 0) {
+            if (Number.isFinite(legacyPrice) && legacyPrice > 0) {
+              totalCost = legacyPrice * Math.max(1, capacity);
+            } else {
+              totalCost = 0;
+            }
+          }
+          if (!Number.isFinite(totalCost)) {
             totalCost = 0;
           }
-        }
-        if (!Number.isFinite(totalCost)) {
-          totalCost = 0;
-        }
-        totalCost = Math.max(0, Math.round(totalCost * 100) / 100);
-        return {
-          ...event,
-          attendees: Number(event.attendees) || 0,
-          capacity,
-          duration: Number(event.duration) || 2,
-          totalCost,
-          joined: Boolean(event.joined),
-          history: event.history || [],
-          paymentLink: event.paymentLink || '',
-          createdByMe: Boolean(event.createdByMe),
-        };
-      });
+          totalCost = Math.max(0, Math.round(totalCost * 100) / 100);
+          return {
+            ...event,
+            attendees: Number(event.attendees) || 0,
+            capacity,
+            duration: Number(event.duration) || 2,
+            totalCost,
+            joined: Boolean(event.joined),
+            history: event.history || [],
+            paymentLink: event.paymentLink || '',
+            createdByMe: Boolean(event.createdByMe),
+          };
+        })
+        .filter((event) => isActiveOrRecent(event, now));
     }
   } catch (error) {
     console.error('Konnte Events nicht laden', error);

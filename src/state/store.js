@@ -1,4 +1,5 @@
 import { loadEvents, saveEvents } from './storage.js';
+import { isActiveOrRecent } from '../utils/time.js';
 
 const state = {
   events: loadEvents(),
@@ -37,6 +38,16 @@ const setEvents = (events) => {
   saveEvents(state.events);
 };
 
+const pruneExpiredEvents = () => {
+  const now = new Date();
+  const initialLength = state.events.length;
+  state.events = state.events.filter((event) => isActiveOrRecent(event, now));
+  if (state.events.length !== initialLength) {
+    saveEvents(state.events);
+  }
+  return state.events.length;
+};
+
 const adjustWeekOffset = (delta) => {
   state.currentWeekOffset += delta;
   return state.currentWeekOffset;
@@ -57,6 +68,7 @@ export {
   updateEventById,
   prependEvent,
   setEvents,
+  pruneExpiredEvents,
   adjustWeekOffset,
   setWeekOffset,
   setRecentJoins,
