@@ -175,6 +175,7 @@ const state = {
 
 const elements = {
   eventsList: document.getElementById('eventsList'),
+  mySessionsList: document.getElementById('mySessionsList'),
   calendarGrid: document.getElementById('calendarGrid'),
   calendarRange: document.getElementById('calendarRange'),
   skillFilter: document.getElementById('skillFilter'),
@@ -275,68 +276,30 @@ const renderEventsList = () => {
   }
 
   events.forEach((event) => {
-    const card = document.createElement('article');
-    card.classList.add('event-card');
-    if (event.joined) {
-      card.classList.add('joined');
-    }
-    const openSpots = event.capacity - event.attendees;
-    const isFull = openSpots <= 0;
-    const isDeadlineReached =
-      !!event.deadline && new Date(event.deadline).getTime() < Date.now();
-    if (isFull) {
-      card.classList.add('is-full');
-    }
-    if (isDeadlineReached) {
-      card.classList.add('is-closed');
-    }
-    const buttonDisabled = !event.joined && (isFull || isDeadlineReached);
-    const buttonLabel = event.joined
-      ? 'Teilnahme zurückziehen'
-      : isDeadlineReached
-      ? 'Anmeldung geschlossen'
-      : isFull
-      ? 'Match voll'
-      : 'Beitreten';
-    const statusLabel = event.joined
-      ? 'Du nimmst teil'
-      : isDeadlineReached
-      ? 'Anmeldung geschlossen'
-      : isFull
-      ? 'Match ist voll'
-      : `${openSpots} Plätze frei`;
-    card.innerHTML = `
-      <div>
-        <div class="badge">${event.skill}</div>
-        <h4>${event.title}</h4>
-        <p class="muted">${event.location} · Gastgeber: ${event.owner || 'Community'}</p>
-        <div class="event-meta">
-          <span>🗓️ ${new Date(`${event.date}T00:00`).toLocaleDateString('de-DE')}</span>
-          <span>⏱️ ${formatTimeRange(event)}</span>
-          <span>💶 ${event.price ? event.price.toFixed(2) : '0.00'} €</span>
-          <span>👤 ${event.attendees}/${event.capacity}</span>
-          ${
-            event.deadline
-              ? `<span class="deadline ${
-                  isDeadlineReached ? 'overdue' : ''
-                }">⏳ Zusage bis ${new Date(event.deadline).toLocaleString('de-DE')}</span>`
-              : ''
-          }
-        </div>
-        ${event.notes ? `<p class="muted">${event.notes}</p>` : ''}
-      </div>
-      <div class="event-actions">
-        <div class="capacity-bar"><span style="width: ${Math.min(
-          100,
-          (event.attendees / event.capacity) * 100
-        )}%"></span></div>
-        <small class="muted">${statusLabel}</small>
-        <button ${buttonDisabled ? 'disabled' : ''} data-id="${event.id}">${buttonLabel}</button>
-      </div>
-    `;
-    const button = card.querySelector('button');
-    button.addEventListener('click', () => toggleParticipation(event.id));
+    const card = createEventCard(event);
     elements.eventsList.appendChild(card);
+  });
+};
+
+const renderMySessions = () => {
+  const joinedEvents = state.events
+    .filter((event) => event.joined)
+    .sort(
+      (a, b) =>
+        new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime()
+    );
+
+  elements.mySessionsList.innerHTML = '';
+
+  if (!joinedEvents.length) {
+    elements.mySessionsList.innerHTML =
+      '<div class="empty">Du hast aktuell keine zugesagten Sessions.</div>';
+    return;
+  }
+
+  joinedEvents.forEach((event) => {
+    const card = createEventCard(event);
+    elements.mySessionsList.appendChild(card);
   });
 };
 
@@ -422,6 +385,79 @@ const getFilteredEvents = () => {
   });
 };
 
+const getEventMeta = (event) => {
+  const openSpots = Math.max(0, event.capacity - event.attendees);
+  const isFull = openSpots <= 0;
+  const isDeadlineReached =
+    !!event.deadline && new Date(event.deadline).getTime() < Date.now();
+  const buttonDisabled = !event.joined && (isFull || isDeadlineReached);
+  const buttonLabel = event.joined
+    ? 'Teilnahme zurückziehen'
+    : isDeadlineReached
+    ? 'Anmeldung geschlossen'
+    : isFull
+    ? 'Match voll'
+    : 'Beitreten';
+  const statusLabel = event.joined
+    ? 'Du nimmst teil'
+    : isDeadlineReached
+    ? 'Anmeldung geschlossen'
+    : isFull
+    ? 'Match ist voll'
+    : `${openSpots} Plätze frei`;
+  return { openSpots, isFull, isDeadlineReached, buttonDisabled, buttonLabel, statusLabel };
+};
+
+const createEventCard = (event) => {
+  const { openSpots, isFull, isDeadlineReached, buttonDisabled, buttonLabel, statusLabel } =
+    getEventMeta(event);
+  const card = document.createElement('article');
+  card.classList.add('event-card');
+  if (event.joined) {
+    card.classList.add('joined');
+  }
+  if (isFull) {
+    card.classList.add('is-full');
+  }
+  if (isDeadlineReached) {
+    card.classList.add('is-closed');
+  }
+  card.innerHTML = `
+      <div>
+        <div class="badge">${event.skill}</div>
+        <h4>${event.title}</h4>
+        <p class="muted">${event.location} · Gastgeber: ${event.owner || 'Community'}</p>
+        <div class="event-meta">
+          <span>🗓️ ${new Date(`${event.date}T00:00`).toLocaleDateString('de-DE')}</span>
+          <span>⏱️ ${formatTimeRange(event)}</span>
+          <span>💶 ${event.price ? event.price.toFixed(2) : '0.00'} €</span>
+          <span>👤 ${event.attendees}/${event.capacity}</span>
+          ${
+            event.deadline
+              ? `<span class="deadline ${
+                  isDeadlineReached ? 'overdue' : ''
+                }">⏳ Zusage bis ${new Date(event.deadline).toLocaleString('de-DE')}</span>`
+              : ''
+          }
+        </div>
+        ${event.notes ? `<p class="muted">${event.notes}</p>` : ''}
+      </div>
+      <div class="event-actions">
+        <div class="capacity-bar"><span style="width: ${Math.min(
+          100,
+          (event.attendees / event.capacity) * 100
+        )}%"></span></div>
+        <small class="muted">${statusLabel}</small>
+        <button ${buttonDisabled ? 'disabled' : ''} data-id="${event.id}">${buttonLabel}</button>
+      </div>
+    `;
+  const button = card.querySelector('button');
+  if (button) {
+    button.addEventListener('click', () => toggleParticipation(event.id));
+  }
+  return card;
+};
+
 const getStartOfWeek = (offset = 0) => {
   const now = new Date();
   const date = new Date(now);
@@ -456,6 +492,7 @@ const toggleParticipation = (id) => {
   });
   saveEvents(state.events);
   renderEventsList();
+  renderMySessions();
   renderCalendar();
   updateStats();
 };
@@ -494,6 +531,7 @@ const handleFormSubmit = (event) => {
   saveEvents(state.events);
   event.target.reset();
   renderEventsList();
+  renderMySessions();
   renderCalendar();
   updateStats();
   switchView('dashboard');
@@ -509,6 +547,7 @@ const switchView = (target) => {
   });
   const titles = {
     dashboard: 'Community Dashboard',
+    'my-sessions': 'Meine Sessions',
     create: 'Neuen Termin erstellen',
     discover: 'Padel-Spots entdecken',
   };
@@ -541,41 +580,13 @@ const setupFilters = () => {
   );
 };
 
-const setupAnimationsToggle = () => {
-  const toggle = document.getElementById('animationToggle');
-  toggle.addEventListener('change', (event) => {
-    document.body.classList.toggle('reduced-motion', !event.target.checked);
-  });
-};
-
-const restoreReducedMotion = () => {
-  const toggle = document.getElementById('animationToggle');
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    toggle.checked = false;
-    document.body.classList.add('reduced-motion');
-  }
-};
-
-const setupReducedMotionStyles = () => {
-  const style = document.createElement('style');
-  style.textContent = `
-    body.reduced-motion * {
-      transition-duration: 0ms !important;
-      animation-duration: 0ms !important;
-    }
-  `;
-  document.head.appendChild(style);
-};
-
 const hydrate = () => {
   setupNavigation();
   setupCalendarControls();
   setupFilters();
-  setupAnimationsToggle();
-  setupReducedMotionStyles();
-  restoreReducedMotion();
   renderPlaces();
   renderEventsList();
+  renderMySessions();
   renderCalendar();
   updateStats();
   document.getElementById('eventForm').addEventListener('submit', handleFormSubmit);

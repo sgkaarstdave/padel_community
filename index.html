@@ -24,6 +24,7 @@
         </div>
         <nav class="sidebar__nav">
           <button class="nav-btn active" data-target="dashboard">Dashboard</button>
+          <button class="nav-btn" data-target="my-sessions">Meine Sessions</button>
           <button class="nav-btn" data-target="create">Termin erstellen</button>
           <button class="nav-btn" data-target="discover">Padel-Spots</button>
         </nav>
@@ -42,13 +43,6 @@
               Organisiere Spiele, lade Freunde ein und wachse gemeinsam mit der
               Padel Community.
             </p>
-          </div>
-          <div class="topbar__actions">
-            <label class="switch">
-              <input type="checkbox" id="animationToggle" checked />
-              <span class="slider"></span>
-            </label>
-            <span class="muted">Animationen</span>
           </div>
         </header>
 
@@ -99,6 +93,18 @@
               </div>
             </div>
             <div id="calendarGrid" class="calendar__grid"></div>
+          </section>
+        </section>
+
+        <section id="my-sessions-view" class="view">
+          <section class="panel">
+            <div class="panel__header">
+              <h3>Deine zugesagten Sessions</h3>
+              <p class="muted">
+                Hier findest du alle Termine, denen du aktuell zugesagt hast.
+              </p>
+            </div>
+            <div id="mySessionsList" class="events-list"></div>
           </section>
         </section>
 
