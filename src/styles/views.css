@@ -67,6 +67,17 @@
   font-size: 0.9rem;
 }
 
+.form .label-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.required-marker {
+  color: var(--danger);
+  font-weight: 700;
+}
+
 .form input,
 .form select,
 .form textarea {
@@ -89,6 +100,13 @@
 
 .form label.full {
   grid-column: 1 / -1;
+}
+
+.form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .view {

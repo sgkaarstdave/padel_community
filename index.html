@@ -135,7 +135,7 @@
         </section>
 
         <section id="create-view" class="view">
-          <form id="eventForm" class="panel form">
+          <form id="eventForm" class="panel form" data-mode="create">
             <div class="form__header">
               <h3>Neuen Termin erstellen</h3>
               <p class="muted">
@@ -146,15 +146,22 @@
 
             <div class="form__grid">
               <label>
-                Titel
+                <span class="label-text"
+                  >Titel <span class="required-marker" aria-hidden="true">*</span></span
+                >
                 <input type="text" name="title" placeholder="Morning Smash" required />
               </label>
               <label>
-                Ort
+                <span class="label-text"
+                  >Ort <span class="required-marker" aria-hidden="true">*</span></span
+                >
                 <select name="location" id="locationSelect" required></select>
               </label>
               <label class="full" id="customLocationWrapper" hidden>
-                Eigener Ort
+                <span class="label-text"
+                  >Eigener Ort
+                  <span class="required-marker" aria-hidden="true">*</span></span
+                >
                 <input
                   type="text"
                   name="customLocation"
@@ -163,15 +170,22 @@
                 />
               </label>
               <label>
-                Datum
+                <span class="label-text"
+                  >Datum <span class="required-marker" aria-hidden="true">*</span></span
+                >
                 <input type="date" name="date" required />
               </label>
               <label>
-                Startzeit
+                <span class="label-text"
+                  >Startzeit <span class="required-marker" aria-hidden="true">*</span></span
+                >
                 <input type="time" name="time" required />
               </label>
               <label>
-                Dauer (Stunden)
+                <span class="label-text"
+                  >Dauer (Stunden)
+                  <span class="required-marker" aria-hidden="true">*</span></span
+                >
                 <input type="number" name="duration" min="1" max="6" value="2" required />
               </label>
               <label>
@@ -179,7 +193,10 @@
                 <input type="number" name="totalCost" min="0" value="40" step="0.01" />
               </label>
               <label>
-                Benötigte Spieler
+                <span class="label-text"
+                  >Benötigte Spieler
+                  <span class="required-marker" aria-hidden="true">*</span></span
+                >
                 <input type="number" name="capacity" min="2" max="8" value="4" required />
               </label>
               <label>
@@ -200,8 +217,11 @@
                 />
               </label>
               <label class="full">
-                Zusage Deadline
-                <input type="datetime-local" name="deadline" />
+                <span class="label-text"
+                  >Zusage Deadline
+                  <span class="required-marker" aria-hidden="true">*</span></span
+                >
+                <input type="datetime-local" name="deadline" required />
               </label>
               <label class="full">
                 Zusätzliche Infos
@@ -213,7 +233,17 @@
               </label>
             </div>
 
-            <button type="submit" class="primary">Termin speichern</button>
+            <div class="form__actions">
+              <button type="submit" class="primary">Termin speichern</button>
+              <button
+                type="button"
+                class="button button--ghost"
+                id="cancelEditButton"
+                hidden
+              >
+                Abbrechen
+              </button>
+            </div>
           </form>
         </section>
 

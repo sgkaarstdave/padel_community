@@ -10,9 +10,20 @@ import {
 import { formatCurrency } from '../utils/format.js';
 
 let toggleParticipationHandler = () => {};
+let ownerEditHandler = () => {};
+let ownerDeleteHandler = () => {};
 
 const registerToggleHandler = (handler) => {
   toggleParticipationHandler = handler;
+};
+
+const registerOwnerHandlers = ({ onEdit, onDelete } = {}) => {
+  if (typeof onEdit === 'function') {
+    ownerEditHandler = onEdit;
+  }
+  if (typeof onDelete === 'function') {
+    ownerDeleteHandler = onDelete;
+  }
 };
 
 const getFilteredEvents = () => {
@@ -287,6 +298,8 @@ const createOwnerCard = (event) => {
           ? 'Neue Zusage'
           : entry.type === 'leave'
           ? 'Absage'
+          : entry.type === 'update'
+          ? 'Details aktualisiert'
           : 'Termin erstellt';
       return `<li class="history__item history__item--${entry.type}">
           <span>${label}</span>
@@ -320,8 +333,31 @@ const createOwnerCard = (event) => {
         <ul class="history">
           ${historyItems || '<li class="history__item"><span>Keine Aktivitäten</span></li>'}
         </ul>
+        <div class="owner-card__actions">
+          <button type="button" class="owner-card__action" data-action="edit" data-id="${
+            event.id
+          }">Bearbeiten</button>
+          <button
+            type="button"
+            class="owner-card__action owner-card__action--delete"
+            data-action="delete"
+            data-id="${event.id}"
+          >
+            Löschen
+          </button>
+        </div>
       </div>
     `;
+
+  const editButton = card.querySelector('[data-action="edit"]');
+  if (editButton) {
+    editButton.addEventListener('click', () => ownerEditHandler(event.id));
+  }
+
+  const deleteButton = card.querySelector('[data-action="delete"]');
+  if (deleteButton) {
+    deleteButton.addEventListener('click', () => ownerDeleteHandler(event.id));
+  }
 
   return card;
 };
@@ -502,6 +538,7 @@ const renderEventsHistory = () => {
 
 export {
   registerToggleHandler,
+  registerOwnerHandlers,
   renderEventsList,
   renderMySessions,
   renderMyAppointments,
