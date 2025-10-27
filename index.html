@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Padel Community Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand__icon">🎾</div>
+          <div>
+            <h1>Padel Community</h1>
+            <p>Finde dein nächstes Match</p>
+          </div>
+        </div>
+        <nav class="sidebar__nav">
+          <button class="nav-btn active" data-target="dashboard">Dashboard</button>
+          <button class="nav-btn" data-target="create">Termin erstellen</button>
+          <button class="nav-btn" data-target="discover">Padel-Spots</button>
+        </nav>
+        <div class="sidebar__footer">
+          <p class="muted">
+            Tipp: Nutze Filter, um schnell die passenden Spiele nach Level und
+            Ort zu finden.
+          </p>
+        </div>
+      </aside>
+      <main>
+        <header class="topbar">
+          <div>
+            <h2 id="view-title">Community Dashboard</h2>
+            <p class="muted">
+              Organisiere Spiele, lade Freunde ein und wachse gemeinsam mit der
+              Padel Community.
+            </p>
+          </div>
+          <div class="topbar__actions">
+            <label class="switch">
+              <input type="checkbox" id="animationToggle" checked />
+              <span class="slider"></span>
+            </label>
+            <span class="muted">Animationen</span>
+          </div>
+        </header>
+
+        <section id="dashboard-view" class="view active">
+          <div class="stats-grid">
+            <article class="stat-card">
+              <h3>Aktive Matches</h3>
+              <p class="stat-value" id="activeMatches">0</p>
+              <p class="muted">Matches, denen du beitreten kannst</p>
+            </article>
+            <article class="stat-card">
+              <h3>Verfügbare Plätze</h3>
+              <p class="stat-value" id="openSpots">0</p>
+              <p class="muted">Freie Plätze über alle Spiele</p>
+            </article>
+            <article class="stat-card">
+              <h3>Community Tendenz</h3>
+              <div class="trend-chip" id="communityTrend">+0</div>
+              <p class="muted">Neue Zusagen in den letzten 24h</p>
+            </article>
+          </div>
+
+          <section class="panel">
+            <div class="panel__header">
+              <h3>Bevorstehende Sessions</h3>
+              <div class="filters">
+                <select id="skillFilter">
+                  <option value="all">Alle Levels</option>
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                </select>
+                <select id="locationFilter">
+                  <option value="all">Alle Orte</option>
+                </select>
+              </div>
+            </div>
+            <div id="eventsList" class="events-list"></div>
+          </section>
+
+          <section class="panel calendar">
+            <div class="panel__header">
+              <h3>Kalender</h3>
+              <div class="calendar__controls">
+                <button id="prevWeek">◀</button>
+                <div id="calendarRange"></div>
+                <button id="nextWeek">▶</button>
+              </div>
+            </div>
+            <div id="calendarGrid" class="calendar__grid"></div>
+          </section>
+        </section>
+
+        <section id="create-view" class="view">
+          <form id="eventForm" class="panel form">
+            <div class="form__header">
+              <h3>Neuen Termin erstellen</h3>
+              <p class="muted">
+                Teile deinen geplanten Slot mit der Community und lass andere
+                beitreten.
+              </p>
+            </div>
+
+            <div class="form__grid">
+              <label>
+                Titel
+                <input type="text" name="title" placeholder="Morning Smash" required />
+              </label>
+              <label>
+                Ort
+                <input type="text" name="location" placeholder="Padel Club Hamburg" required />
+              </label>
+              <label>
+                Datum
+                <input type="date" name="date" required />
+              </label>
+              <label>
+                Startzeit
+                <input type="time" name="time" required />
+              </label>
+              <label>
+                Dauer (Stunden)
+                <input type="number" name="duration" min="1" max="6" value="2" required />
+              </label>
+              <label>
+                Kosten (€)
+                <input type="number" name="price" min="0" value="10" />
+              </label>
+              <label>
+                Benötigte Spieler
+                <input type="number" name="capacity" min="2" max="8" value="4" required />
+              </label>
+              <label>
+                Skill Level
+                <select name="skill">
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate" selected>Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                </select>
+              </label>
+              <label class="full">
+                Zusage Deadline
+                <input type="datetime-local" name="deadline" />
+              </label>
+              <label class="full">
+                Zusätzliche Infos
+                <textarea
+                  name="notes"
+                  rows="3"
+                  placeholder="Bringe eigene Schläger mit, wir haben neue Bälle vor Ort."
+                ></textarea>
+              </label>
+            </div>
+
+            <button type="submit" class="primary">Termin speichern</button>
+          </form>
+        </section>
+
+        <section id="discover-view" class="view">
+          <section class="panel places">
+            <div class="form__header">
+              <h3>Padel-Spots in deiner Nähe</h3>
+              <p class="muted">
+                Entdecke beliebte Locations und buche direkt über den jeweiligen
+                Anbieter.
+              </p>
+            </div>
+            <div id="placesList" class="places__grid"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+    <script src="app.js" type="module"></script>
+  </body>
+</html>

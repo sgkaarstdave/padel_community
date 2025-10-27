@@ -1,0 +1,584 @@
+const STORAGE_KEY = 'padel-community-events-v1';
+
+const skillColors = {
+  Beginner: 'rgba(59, 130, 246, 0.35)',
+  Intermediate: 'rgba(99, 102, 241, 0.35)',
+  Advanced: 'rgba(244, 114, 182, 0.35)',
+};
+
+const places = [
+  {
+    name: 'Padel Club Hamburg',
+    city: 'Hamburg',
+    rating: 4.8,
+    courts: 6,
+    tags: ['Indoor', 'Pro-Shop', 'Coaching'],
+    url: 'https://www.padelclubhamburg.de',
+  },
+  {
+    name: 'Padel Base Berlin',
+    city: 'Berlin',
+    rating: 4.6,
+    courts: 8,
+    tags: ['Outdoor', 'Snacks', 'Trainings'],
+    url: 'https://www.padelbase.de',
+  },
+  {
+    name: 'Rhein Main Padel Arena',
+    city: 'Frankfurt',
+    rating: 4.9,
+    courts: 5,
+    tags: ['Indoor', 'Matchmaking', 'Afterwork'],
+    url: 'https://www.rheinmainpadel.de',
+  },
+  {
+    name: 'Munich Smash Hub',
+    city: 'München',
+    rating: 4.7,
+    courts: 4,
+    tags: ['Rooftop', 'Lounge', 'Events'],
+    url: 'https://www.munichsmashhub.de',
+  },
+];
+
+const defaultEvents = () => {
+  const today = new Date();
+  const pad = (value) => value.toString().padStart(2, '0');
+  const withDate = (offsetDays, hour, minute = 0) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() + offsetDays);
+    date.setHours(hour, minute, 0, 0);
+    const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+      date.getDate()
+    )}`;
+    const timeStr = `${pad(hour)}:${pad(minute)}`;
+    return { date, dateStr, timeStr };
+  };
+
+  const entries = [
+    {
+      title: 'Sunrise Doubles',
+      location: 'Padel Club Hamburg',
+      skill: 'Intermediate',
+      capacity: 4,
+      price: 12,
+      notes: 'Wir spielen auf Court 2. Bälle bringe ich mit.',
+      owner: 'Lea',
+      offset: 1,
+      hour: 8,
+      duration: 2,
+    },
+    {
+      title: 'Lunch Break Rally',
+      location: 'Padel Base Berlin',
+      skill: 'Beginner',
+      capacity: 4,
+      price: 9,
+      notes: 'Perfekt für Einsteiger:innen. Coaching inklusive.',
+      owner: 'Marco',
+      offset: 2,
+      hour: 12,
+      duration: 1.5,
+    },
+    {
+      title: 'Afterwork League',
+      location: 'Rhein Main Padel Arena',
+      skill: 'Advanced',
+      capacity: 6,
+      price: 18,
+      notes: 'High intensity Training. Bitte 10 Minuten früher da sein.',
+      owner: 'Sara',
+      offset: 3,
+      hour: 19,
+      duration: 2,
+    },
+    {
+      title: 'Weekend Mixed Open',
+      location: 'Munich Smash Hub',
+      skill: 'Intermediate',
+      capacity: 8,
+      price: 15,
+      notes: 'Mix & Match Format, wir rotieren nach jedem Satz.',
+      owner: 'Jonas',
+      offset: 5,
+      hour: 10,
+      duration: 3,
+    },
+  ];
+
+  return entries.map((entry, index) => {
+    const { date, dateStr, timeStr } = withDate(entry.offset, entry.hour);
+    const deadline = new Date(date);
+    deadline.setHours(deadline.getHours() - 6);
+    const attendees = Math.max(1, Math.floor(entry.capacity / 2));
+    const history = Array.from({ length: attendees }, (_, idx) => {
+      const joinTime = new Date();
+      joinTime.setHours(joinTime.getHours() - (idx + 1) * 4);
+      return { timestamp: joinTime.toISOString(), type: 'join' };
+    });
+    history.unshift({ timestamp: new Date().toISOString(), type: 'create' });
+    return {
+      id: `seed-${index}`,
+      title: entry.title,
+      location: entry.location,
+      skill: entry.skill,
+      capacity: entry.capacity,
+      price: entry.price,
+      notes: entry.notes,
+      owner: entry.owner,
+      date: dateStr,
+      time: timeStr,
+      duration: entry.duration,
+      deadline: deadline.toISOString().slice(0, 16),
+      attendees,
+      createdAt: new Date().toISOString(),
+      joined: false,
+      history,
+    };
+  });
+};
+
+const loadEvents = () => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return parsed.map((event) => ({
+        ...event,
+        attendees: Number(event.attendees) || 0,
+        capacity: Number(event.capacity) || 4,
+        duration: Number(event.duration) || 2,
+        price: Number(event.price) || 0,
+        joined: Boolean(event.joined),
+        history: event.history || [],
+      }));
+    }
+  } catch (error) {
+    console.error('Konnte Events nicht laden', error);
+  }
+  return defaultEvents();
+};
+
+const saveEvents = (events) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+  } catch (error) {
+    console.warn('Lokale Speicherung deaktiviert', error);
+  }
+};
+
+const state = {
+  events: loadEvents(),
+  currentWeekOffset: 0,
+  recentJoins: 0,
+};
+
+const elements = {
+  eventsList: document.getElementById('eventsList'),
+  calendarGrid: document.getElementById('calendarGrid'),
+  calendarRange: document.getElementById('calendarRange'),
+  skillFilter: document.getElementById('skillFilter'),
+  locationFilter: document.getElementById('locationFilter'),
+  activeMatches: document.getElementById('activeMatches'),
+  openSpots: document.getElementById('openSpots'),
+  communityTrend: document.getElementById('communityTrend'),
+};
+
+const formatTimeRange = (event) => {
+  const [hour, minute] = event.time.split(':').map(Number);
+  const start = new Date(`${event.date}T${event.time}`);
+  const end = new Date(start);
+  const durationMinutes = Math.round((event.duration || 2) * 60);
+  end.setMinutes(start.getMinutes() + durationMinutes);
+  return `${padNumber(hour)}:${padNumber(minute)} – ${padNumber(
+    end.getHours()
+  )}:${padNumber(end.getMinutes())}`;
+};
+
+const padNumber = (value) => value.toString().padStart(2, '0');
+
+const computeRecentTrend = () => {
+  const since = Date.now() - 24 * 60 * 60 * 1000;
+  return state.events.reduce((total, event) => {
+    (event.history || []).forEach((entry) => {
+      const timestamp = new Date(entry.timestamp).getTime();
+      if (Number.isNaN(timestamp) || timestamp < since) {
+        return;
+      }
+      if (entry.type === 'join') {
+        total += 1;
+      }
+      if (entry.type === 'leave') {
+        total -= 1;
+      }
+    });
+    return total;
+  }, 0);
+};
+
+const updateStats = () => {
+  const filtered = getFilteredEvents();
+  const openEvents = filtered.filter((event) => event.attendees < event.capacity);
+  const openSpots = openEvents.reduce(
+    (acc, event) => acc + (event.capacity - event.attendees),
+    0
+  );
+  const trend = computeRecentTrend();
+  state.recentJoins = trend;
+  elements.activeMatches.textContent = openEvents.length;
+  elements.openSpots.textContent = openSpots;
+  elements.communityTrend.textContent = `${trend >= 0 ? '+' : ''}${trend}`;
+  elements.communityTrend.style.color =
+    trend >= 0 ? 'var(--success)' : 'var(--danger)';
+  elements.communityTrend.style.background =
+    trend >= 0
+      ? 'rgba(52, 211, 153, 0.18)'
+      : 'rgba(248, 113, 113, 0.18)';
+};
+
+const renderEventsList = () => {
+  const previousLocation = elements.locationFilter.value;
+  const skill = elements.skillFilter.value;
+  const skillFiltered = state.events.filter(
+    (event) => skill === 'all' || event.skill === skill
+  );
+
+  const locationOptions = new Set(['all']);
+  skillFiltered.forEach((event) => locationOptions.add(event.location));
+
+  elements.locationFilter.innerHTML = '';
+  [...locationOptions].forEach((location) => {
+    const option = document.createElement('option');
+    option.value = location;
+    option.textContent = location === 'all' ? 'Alle Orte' : location;
+    elements.locationFilter.appendChild(option);
+  });
+
+  if (locationOptions.has(previousLocation)) {
+    elements.locationFilter.value = previousLocation;
+  } else {
+    elements.locationFilter.value = 'all';
+  }
+
+  const events = getFilteredEvents().sort((a, b) => {
+    const aDate = new Date(`${a.date}T${a.time}`);
+    const bDate = new Date(`${b.date}T${b.time}`);
+    return aDate - bDate;
+  });
+
+  elements.eventsList.innerHTML = '';
+
+  if (!events.length) {
+    elements.eventsList.innerHTML =
+      '<div class="empty">Keine Sessions in diesem Filterbereich. Starte eine neue!</div>';
+    return;
+  }
+
+  events.forEach((event) => {
+    const card = document.createElement('article');
+    card.classList.add('event-card');
+    if (event.joined) {
+      card.classList.add('joined');
+    }
+    const openSpots = event.capacity - event.attendees;
+    const isFull = openSpots <= 0;
+    const isDeadlineReached =
+      !!event.deadline && new Date(event.deadline).getTime() < Date.now();
+    if (isFull) {
+      card.classList.add('is-full');
+    }
+    if (isDeadlineReached) {
+      card.classList.add('is-closed');
+    }
+    const buttonDisabled = !event.joined && (isFull || isDeadlineReached);
+    const buttonLabel = event.joined
+      ? 'Teilnahme zurückziehen'
+      : isDeadlineReached
+      ? 'Anmeldung geschlossen'
+      : isFull
+      ? 'Match voll'
+      : 'Beitreten';
+    const statusLabel = event.joined
+      ? 'Du nimmst teil'
+      : isDeadlineReached
+      ? 'Anmeldung geschlossen'
+      : isFull
+      ? 'Match ist voll'
+      : `${openSpots} Plätze frei`;
+    card.innerHTML = `
+      <div>
+        <div class="badge">${event.skill}</div>
+        <h4>${event.title}</h4>
+        <p class="muted">${event.location} · Gastgeber: ${event.owner || 'Community'}</p>
+        <div class="event-meta">
+          <span>🗓️ ${new Date(`${event.date}T00:00`).toLocaleDateString('de-DE')}</span>
+          <span>⏱️ ${formatTimeRange(event)}</span>
+          <span>💶 ${event.price ? event.price.toFixed(2) : '0.00'} €</span>
+          <span>👤 ${event.attendees}/${event.capacity}</span>
+          ${
+            event.deadline
+              ? `<span class="deadline ${
+                  isDeadlineReached ? 'overdue' : ''
+                }">⏳ Zusage bis ${new Date(event.deadline).toLocaleString('de-DE')}</span>`
+              : ''
+          }
+        </div>
+        ${event.notes ? `<p class="muted">${event.notes}</p>` : ''}
+      </div>
+      <div class="event-actions">
+        <div class="capacity-bar"><span style="width: ${Math.min(
+          100,
+          (event.attendees / event.capacity) * 100
+        )}%"></span></div>
+        <small class="muted">${statusLabel}</small>
+        <button ${buttonDisabled ? 'disabled' : ''} data-id="${event.id}">${buttonLabel}</button>
+      </div>
+    `;
+    const button = card.querySelector('button');
+    button.addEventListener('click', () => toggleParticipation(event.id));
+    elements.eventsList.appendChild(card);
+  });
+};
+
+const renderCalendar = () => {
+  const start = getStartOfWeek(state.currentWeekOffset);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  elements.calendarRange.textContent = `${start.toLocaleDateString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+  })} – ${end.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}`;
+
+  elements.calendarGrid.innerHTML = '';
+  for (let i = 0; i < 7; i += 1) {
+    const date = new Date(start);
+    date.setDate(start.getDate() + i);
+    const dayEvents = state.events
+      .filter((event) => event.date === toISODate(date))
+      .sort(
+        (a, b) =>
+          new Date(`${a.date}T${a.time}`).getTime() -
+          new Date(`${b.date}T${b.time}`).getTime()
+      );
+    const day = document.createElement('div');
+    day.classList.add('calendar__day');
+    day.innerHTML = `
+      <div>
+        <h4>${date.toLocaleDateString('de-DE', {
+          weekday: 'long',
+        })}</h4>
+        <div class="date">${date.toLocaleDateString('de-DE')}</div>
+      </div>
+      <div class="calendar__body">
+        ${
+          dayEvents.length
+            ? dayEvents
+                .map(
+                  (event) => `
+                    <div class="calendar__badge" style="background: ${
+                      skillColors[event.skill] || 'rgba(59, 130, 246, 0.2)'
+                    }">
+                      ${event.time} · ${event.title}
+                    </div>
+                  `
+                )
+                .join('')
+            : '<span class="muted">Noch keine Matches</span>'
+        }
+      </div>
+    `;
+    elements.calendarGrid.appendChild(day);
+  }
+};
+
+const renderPlaces = () => {
+  const list = document.getElementById('placesList');
+  list.innerHTML = '';
+  places.forEach((place) => {
+    const card = document.createElement('article');
+    card.classList.add('place-card');
+    card.innerHTML = `
+      <div class="place-card__header">
+        <h4>${place.name}</h4>
+        <span class="badge">⭐️ ${place.rating.toFixed(1)}</span>
+      </div>
+      <p class="muted">${place.city} · ${place.courts} Courts</p>
+      <div class="place-card__tags">
+        ${place.tags.map((tag) => `<span>${tag}</span>`).join('')}
+      </div>
+      <a class="primary" href="${place.url}" target="_blank" rel="noopener">Zur Website</a>
+    `;
+    list.appendChild(card);
+  });
+};
+
+const getFilteredEvents = () => {
+  const skill = elements.skillFilter.value;
+  const location = elements.locationFilter.value;
+  return state.events.filter((event) => {
+    const skillMatch = skill === 'all' || event.skill === skill;
+    const locationMatch = location === 'all' || event.location === location;
+    return skillMatch && locationMatch;
+  });
+};
+
+const getStartOfWeek = (offset = 0) => {
+  const now = new Date();
+  const date = new Date(now);
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Montag als Start
+  date.setDate(diff + offset * 7);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const toISODate = (date) => date.toISOString().slice(0, 10);
+
+const toggleParticipation = (id) => {
+  const now = new Date();
+  state.events = state.events.map((event) => {
+    if (event.id !== id) return event;
+    const updated = { ...event };
+    const deadlinePassed =
+      !!updated.deadline && new Date(updated.deadline).getTime() < now.getTime();
+    const isFull = updated.attendees >= updated.capacity;
+    const history = updated.history || [];
+    if (updated.joined) {
+      updated.joined = false;
+      updated.attendees = Math.max(0, updated.attendees - 1);
+      updated.history = [{ timestamp: now.toISOString(), type: 'leave' }, ...history];
+    } else if (!deadlinePassed && !isFull) {
+      updated.joined = true;
+      updated.attendees += 1;
+      updated.history = [{ timestamp: now.toISOString(), type: 'join' }, ...history];
+    }
+    return updated;
+  });
+  saveEvents(state.events);
+  renderEventsList();
+  renderCalendar();
+  updateStats();
+};
+
+const handleFormSubmit = (event) => {
+  event.preventDefault();
+  const formData = new FormData(event.target);
+  const newEvent = Object.fromEntries(formData.entries());
+  const id = `evt-${crypto.randomUUID?.() || Date.now()}`;
+  const attendees = 1;
+  const createdAt = new Date().toISOString();
+
+  const normalized = {
+    id,
+    title: newEvent.title.trim(),
+    location: newEvent.location.trim(),
+    date: newEvent.date,
+    time: newEvent.time,
+    duration: Number(newEvent.duration) || 2,
+    price: Number(newEvent.price) || 0,
+    capacity: Number(newEvent.capacity) || 4,
+    skill: newEvent.skill,
+    notes: newEvent.notes?.trim() ?? '',
+    owner: 'Du',
+    attendees,
+    deadline: newEvent.deadline || '',
+    createdAt,
+    joined: true,
+    history: [
+      { timestamp: createdAt, type: 'create' },
+      { timestamp: createdAt, type: 'join' },
+    ],
+  };
+
+  state.events = [normalized, ...state.events];
+  saveEvents(state.events);
+  event.target.reset();
+  renderEventsList();
+  renderCalendar();
+  updateStats();
+  switchView('dashboard');
+  event.target.querySelector('input[name="title"]').focus();
+};
+
+const switchView = (target) => {
+  document.querySelectorAll('.view').forEach((view) => {
+    view.classList.toggle('active', view.id === `${target}-view`);
+  });
+  document.querySelectorAll('.nav-btn').forEach((button) => {
+    button.classList.toggle('active', button.dataset.target === target);
+  });
+  const titles = {
+    dashboard: 'Community Dashboard',
+    create: 'Neuen Termin erstellen',
+    discover: 'Padel-Spots entdecken',
+  };
+  document.getElementById('view-title').textContent = titles[target];
+};
+
+const setupNavigation = () => {
+  document.querySelectorAll('.nav-btn').forEach((button) => {
+    button.addEventListener('click', () => switchView(button.dataset.target));
+  });
+};
+
+const setupCalendarControls = () => {
+  document.getElementById('prevWeek').addEventListener('click', () => {
+    state.currentWeekOffset -= 1;
+    renderCalendar();
+  });
+  document.getElementById('nextWeek').addEventListener('click', () => {
+    state.currentWeekOffset += 1;
+    renderCalendar();
+  });
+};
+
+const setupFilters = () => {
+  [elements.skillFilter, elements.locationFilter].forEach((filter) =>
+    filter.addEventListener('change', () => {
+      renderEventsList();
+      updateStats();
+    })
+  );
+};
+
+const setupAnimationsToggle = () => {
+  const toggle = document.getElementById('animationToggle');
+  toggle.addEventListener('change', (event) => {
+    document.body.classList.toggle('reduced-motion', !event.target.checked);
+  });
+};
+
+const restoreReducedMotion = () => {
+  const toggle = document.getElementById('animationToggle');
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    toggle.checked = false;
+    document.body.classList.add('reduced-motion');
+  }
+};
+
+const setupReducedMotionStyles = () => {
+  const style = document.createElement('style');
+  style.textContent = `
+    body.reduced-motion * {
+      transition-duration: 0ms !important;
+      animation-duration: 0ms !important;
+    }
+  `;
+  document.head.appendChild(style);
+};
+
+const hydrate = () => {
+  setupNavigation();
+  setupCalendarControls();
+  setupFilters();
+  setupAnimationsToggle();
+  setupReducedMotionStyles();
+  restoreReducedMotion();
+  renderPlaces();
+  renderEventsList();
+  renderCalendar();
+  updateStats();
+  document.getElementById('eventForm').addEventListener('submit', handleFormSubmit);
+};
+
+document.addEventListener('DOMContentLoaded', hydrate);
