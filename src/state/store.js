@@ -33,6 +33,16 @@ const prependEvent = (event) => {
   saveEvents(state.events);
 };
 
+const removeEventById = (id) => {
+  const initialLength = state.events.length;
+  state.events = state.events.filter((event) => event.id !== id);
+  if (state.events.length !== initialLength) {
+    saveEvents(state.events);
+    return true;
+  }
+  return false;
+};
+
 const setEvents = (events) => {
   state.events = events;
   saveEvents(state.events);
@@ -67,6 +77,7 @@ export {
   state,
   updateEventById,
   prependEvent,
+  removeEventById,
   setEvents,
   pruneExpiredEvents,
   adjustWeekOffset,

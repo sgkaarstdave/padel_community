@@ -3,6 +3,7 @@ import { setupCalendarControls } from './controllers/calendar.js';
 import { createEventControllers } from './controllers/events.js';
 import {
   registerToggleHandler,
+  registerOwnerHandlers,
   renderEventsList,
   renderEventsHistory,
   renderMySessions,
@@ -92,12 +93,14 @@ const hydrate = () => {
   renderPlaces();
   setupLocationSelector();
 
-  const { toggleParticipation, handleFormSubmit } = createEventControllers({
-    refreshUI,
-    navigate: switchView,
-  });
+  const { toggleParticipation, handleFormSubmit, startEditing, deleteEvent } =
+    createEventControllers({
+      refreshUI,
+      navigate: switchView,
+    });
 
   registerToggleHandler(toggleParticipation);
+  registerOwnerHandlers({ onEdit: startEditing, onDelete: deleteEvent });
   refreshUI();
 
   document.getElementById('eventForm').addEventListener('submit', handleFormSubmit);
