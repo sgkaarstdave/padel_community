@@ -160,12 +160,15 @@ const createEventControllers = ({ refreshUI, navigate }) => {
         window.alert('Bitte gib eine gültige Zusagefrist an.');
         return;
       }
-      if (deadlineDate.getTime() >= range.start.getTime()) {
-        window.alert('Die Zusagefrist muss vor dem Start der Session liegen.');
-        return;
-      }
       if (deadlineDate.getTime() <= now.getTime()) {
         window.alert('Die Zusagefrist muss in der Zukunft liegen.');
+        return;
+      }
+      const minimumLeadTimeMs = 60 * 60 * 1000;
+      if (deadlineDate.getTime() > range.start.getTime() - minimumLeadTimeMs) {
+        window.alert(
+          'Die Zusagefrist muss mindestens eine Stunde vor dem Start der Session liegen.',
+        );
         return;
       }
       deadline = deadlineDate.toISOString().slice(0, 16);
