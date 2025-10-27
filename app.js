@@ -470,31 +470,84 @@ const getStartOfWeek = (offset = 0) => {
 
 const toISODate = (date) => date.toISOString().slice(0, 10);
 
-const toggleParticipation = (id) => {
-  const now = new Date();
-  state.events = state.events.map((event) => {
-    if (event.id !== id) return event;
-    const updated = { ...event };
-    const deadlinePassed =
-      !!updated.deadline && new Date(updated.deadline).getTime() < now.getTime();
-    const isFull = updated.attendees >= updated.capacity;
-    const history = updated.history || [];
-    if (updated.joined) {
-      updated.joined = false;
-      updated.attendees = Math.max(0, updated.attendees - 1);
-      updated.history = [{ timestamp: now.toISOString(), type: 'leave' }, ...history];
-    } else if (!deadlinePassed && !isFull) {
-      updated.joined = true;
-      updated.attendees += 1;
-      updated.history = [{ timestamp: now.toISOString(), type: 'join' }, ...history];
-    }
-    return updated;
-  });
+const syncState = () => {
   saveEvents(state.events);
   renderEventsList();
   renderMySessions();
   renderCalendar();
   updateStats();
+};
+
+const updateEventById = (id, updater) => {
+  let hasChanged = false;
+  state.events = state.events.map((event) => {
+    if (event.id !== id) return event;
+    const nextEvent = updater({ ...event });
+    if (nextEvent) {
+      hasChanged = true;
+      return nextEvent;
+    }
+    return event;
+  });
+  return hasChanged;
+};
+
+const joinSession = (id) => {
+  const now = new Date();
+  const changed = updateEventById(id, (event) => {
+    const deadlinePassed =
+      !!event.deadline && new Date(event.deadline).getTime() < now.getTime();
+    const capacity = Math.max(0, Number(event.capacity) || 0);
+    const attendees = Math.max(0, Number(event.attendees) || 0);
+    const isFull = capacity === 0 || attendees >= capacity;
+    if (event.joined || deadlinePassed || isFull) {
+      return null;
+    }
+    const history = Array.isArray(event.history) ? event.history : [];
+    return {
+      ...event,
+      joined: true,
+      attendees: Math.min(capacity, attendees + 1),
+      history: [{ timestamp: now.toISOString(), type: 'join' }, ...history],
+    };
+  });
+  if (changed) {
+    syncState();
+  }
+  return changed;
+};
+
+const withdrawFromSession = (id) => {
+  const now = new Date();
+  const changed = updateEventById(id, (event) => {
+    if (!event.joined) {
+      return null;
+    }
+    const attendees = Math.max(0, Number(event.attendees) || 0);
+    const history = Array.isArray(event.history) ? event.history : [];
+    return {
+      ...event,
+      joined: false,
+      attendees: Math.max(0, attendees - 1),
+      history: [{ timestamp: now.toISOString(), type: 'leave' }, ...history],
+    };
+  });
+  if (changed) {
+    syncState();
+  }
+  return changed;
+};
+
+const toggleParticipation = (id) => {
+  const event = state.events.find((session) => session.id === id);
+  if (!event) {
+    return;
+  }
+  if (event.joined) {
+    withdrawFromSession(id);
+  } else {
+    joinSession(id);
+  }
 };
 
 const handleFormSubmit = (event) => {
@@ -528,12 +581,8 @@ const handleFormSubmit = (event) => {
   };
 
   state.events = [normalized, ...state.events];
-  saveEvents(state.events);
   event.target.reset();
-  renderEventsList();
-  renderMySessions();
-  renderCalendar();
-  updateStats();
+  syncState();
   switchView('dashboard');
   event.target.querySelector('input[name="title"]').focus();
 };
