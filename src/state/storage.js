@@ -120,27 +120,28 @@ const defaultEvents = () => {
       joinTime.setHours(joinTime.getHours() - (idx + 1) * 4);
       return { timestamp: joinTime.toISOString(), type: 'join' };
     });
-    history.unshift({ timestamp: new Date().toISOString(), type: 'create' });
-    return {
-      id: `seed-${index}`,
-      title: entry.title,
-      location: entry.location,
+      history.unshift({ timestamp: new Date().toISOString(), type: 'create' });
+      return {
+        id: `seed-${index}`,
+        title: entry.title,
+        location: entry.location,
       skill: entry.skill,
       capacity: entry.capacity,
-      totalCost: entry.totalCost,
-      notes: entry.notes,
-      owner: entry.owner,
-      paymentLink: entry.paymentLink || '',
-      date: dateStr,
-      time: timeStr,
-      duration: entry.duration,
-      deadline: deadline.toISOString().slice(0, 16),
-      attendees,
-      createdAt: new Date().toISOString(),
-      joined: false,
-      history,
-    };
-  });
+        totalCost: entry.totalCost,
+        notes: entry.notes,
+        owner: entry.owner,
+        paymentLink: entry.paymentLink || '',
+        date: dateStr,
+        time: timeStr,
+        duration: entry.duration,
+        deadline: deadline.toISOString().slice(0, 16),
+        attendees,
+        createdAt: new Date().toISOString(),
+        joined: false,
+        createdByMe: false,
+        history,
+      };
+    });
 };
 
 const loadEvents = () => {
@@ -172,6 +173,7 @@ const loadEvents = () => {
           joined: Boolean(event.joined),
           history: event.history || [],
           paymentLink: event.paymentLink || '',
+          createdByMe: Boolean(event.createdByMe),
         };
       });
     }

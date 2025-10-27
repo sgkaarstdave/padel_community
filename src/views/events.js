@@ -62,6 +62,44 @@ const getEventMeta = (event) => {
   };
 };
 
+const isEventJoinable = (event) => {
+  const { isFull, isDeadlineReached } = getEventMeta(event);
+  return !event.joined && !isFull && !isDeadlineReached;
+};
+
+const RELATIVE_TIME_LIMITS = [
+  { unit: 'minute', value: 60 },
+  { unit: 'hour', value: 24 },
+  { unit: 'day', value: 7 },
+];
+
+const formatRelativeTime = (timestamp) => {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) {
+    return 'vor einiger Zeit';
+  }
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs <= 0) {
+    return 'gerade eben';
+  }
+  const minutes = Math.round(diffMs / 60000);
+  if (minutes < 1) {
+    return 'gerade eben';
+  }
+  if (minutes < RELATIVE_TIME_LIMITS[0].value) {
+    return `vor ${minutes} Min.`;
+  }
+  const hours = Math.round(minutes / 60);
+  if (hours < RELATIVE_TIME_LIMITS[1].value) {
+    return `vor ${hours} Std.`;
+  }
+  const days = Math.round(hours / 24);
+  if (days < RELATIVE_TIME_LIMITS[2].value) {
+    return `vor ${days} Tg.`;
+  }
+  return date.toLocaleDateString('de-DE');
+};
+
 const createEventCard = (event) => {
   const {
     isFull,
@@ -212,6 +250,141 @@ const renderMySessions = () => {
   });
 };
 
+const createOwnerCard = (event) => {
+  const {
+    openSpots,
+    statusLabel,
+    currentShare,
+    projectedShare,
+    totalCost,
+    attendees,
+    capacity,
+  } = getEventMeta(event);
+  const history = Array.isArray(event.history) ? event.history : [];
+  const historyItems = history
+    .slice(0, 4)
+    .map((entry) => {
+      const label =
+        entry.type === 'join'
+          ? 'Neue Zusage'
+          : entry.type === 'leave'
+          ? 'Absage'
+          : 'Termin erstellt';
+      return `<li class="history__item history__item--${entry.type}">
+          <span>${label}</span>
+          <span class="muted">${formatRelativeTime(entry.timestamp)}</span>
+        </li>`;
+    })
+    .join('');
+
+  const card = document.createElement('article');
+  card.classList.add('event-card', 'owner-card');
+  card.innerHTML = `
+      <div>
+        <div class="badge">${event.skill}</div>
+        <h4>${event.title}</h4>
+        <p class="muted">${event.location} · ${
+          new Date(`${event.date}T00:00`).toLocaleDateString('de-DE')
+        } · ${formatTimeRange(event)}</p>
+        <div class="event-meta owner-meta">
+          <span>👥 Zusagen: ${attendees}/${capacity}</span>
+          <span>🪑 Offene Plätze: ${openSpots}</span>
+          <span>💶 Gesamtkosten: ${formatCurrency(totalCost)}</span>
+          <span>🤝 Aktueller Anteil: ${formatCurrency(currentShare)}</span>
+          <span>📊 Bei voller Auslastung: ${formatCurrency(projectedShare)} p.P.</span>
+        </div>
+        ${
+          event.notes ? `<p class="muted">${event.notes}</p>` : ''
+        }
+      </div>
+      <div class="owner-card__sidebar">
+        <small class="muted">${statusLabel}</small>
+        <ul class="history">
+          ${historyItems || '<li class="history__item"><span>Keine Aktivitäten</span></li>'}
+        </ul>
+      </div>
+    `;
+
+  return card;
+};
+
+const renderOwnerAlerts = (events) => {
+  if (!elements.ownerAlerts) {
+    return;
+  }
+  const windowMs = 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const alerts = events
+    .map((event) => {
+      const history = Array.isArray(event.history) ? event.history : [];
+      const latestLeave = history.find((entry) => entry.type === 'leave');
+      if (!latestLeave) {
+        return null;
+      }
+      const timestamp = new Date(latestLeave.timestamp).getTime();
+      if (Number.isNaN(timestamp) || now - timestamp > windowMs) {
+        return null;
+      }
+      return {
+        event,
+        entry: latestLeave,
+      };
+    })
+    .filter(Boolean)
+    .sort(
+      (a, b) =>
+        new Date(b.entry.timestamp).getTime() - new Date(a.entry.timestamp).getTime()
+    );
+
+  if (!alerts.length) {
+    elements.ownerAlerts.innerHTML =
+      '<div class="alert alert--muted">Keine neuen Absagen in den letzten 7 Tagen.</div>';
+    return;
+  }
+
+  elements.ownerAlerts.innerHTML = alerts
+    .map(
+      ({ event, entry }) => `
+        <div class="alert alert--warning">
+          <strong>${event.title}</strong>: Absage ${formatRelativeTime(entry.timestamp)}
+        </div>
+      `
+    )
+    .join('');
+};
+
+const renderMyAppointments = () => {
+  const createdEvents = state.events
+    .filter((event) => event.createdByMe)
+    .sort(
+      (a, b) =>
+        new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime()
+    );
+
+  if (!elements.myAppointmentsList) {
+    return;
+  }
+
+  elements.myAppointmentsList.innerHTML = '';
+
+  if (!createdEvents.length) {
+    if (elements.ownerAlerts) {
+      elements.ownerAlerts.innerHTML =
+        '<div class="alert alert--muted">Du hast noch keine eigenen Termine erstellt.</div>';
+    }
+    elements.myAppointmentsList.innerHTML =
+      '<div class="empty">Du hast bisher keine eigenen Termine erstellt.</div>';
+    return;
+  }
+
+  renderOwnerAlerts(createdEvents);
+
+  createdEvents.forEach((event) => {
+    const card = createOwnerCard(event);
+    elements.myAppointmentsList.appendChild(card);
+  });
+};
+
 const computeRecentTrend = () => {
   const since = Date.now() - 24 * 60 * 60 * 1000;
   return state.events.reduce((total, event) => {
@@ -233,14 +406,18 @@ const computeRecentTrend = () => {
 
 const updateStats = () => {
   const filtered = getFilteredEvents();
-  const openEvents = filtered.filter((event) => event.attendees < event.capacity);
-  const openSpots = openEvents.reduce(
-    (acc, event) => acc + (event.capacity - event.attendees),
-    0
-  );
+  let openSpots = 0;
+  const joinableEvents = filtered.filter((event) => {
+    if (!isEventJoinable(event)) {
+      return false;
+    }
+    const { openSpots: availableSpots } = getEventMeta(event);
+    openSpots += availableSpots;
+    return true;
+  });
   const trend = computeRecentTrend();
   setRecentJoins(trend);
-  elements.activeMatches.textContent = openEvents.length;
+  elements.activeMatches.textContent = joinableEvents.length;
   elements.openSpots.textContent = openSpots;
   elements.communityTrend.textContent = `${trend >= 0 ? '+' : ''}${trend}`;
   elements.communityTrend.style.color =
@@ -261,6 +438,7 @@ export {
   registerToggleHandler,
   renderEventsList,
   renderMySessions,
+  renderMyAppointments,
   updateStats,
   bindFilters,
 };
