@@ -1,6 +1,12 @@
 import { elements } from './elements.js';
 import { state, setRecentJoins } from '../state/store.js';
-import { formatTimeRange } from '../utils/time.js';
+import {
+  formatTimeRange,
+  getEventTimeRange,
+  hasEventEnded,
+  isEventInHistoryWindow,
+  HISTORY_WINDOW_DAYS,
+} from '../utils/time.js';
 import { formatCurrency } from '../utils/format.js';
 
 let toggleParticipationHandler = () => {};
@@ -12,7 +18,12 @@ const registerToggleHandler = (handler) => {
 const getFilteredEvents = () => {
   const skill = elements.skillFilter.value;
   const location = elements.locationFilter.value;
+  const now = Date.now();
   return state.events.filter((event) => {
+    const range = getEventTimeRange(event);
+    if (!range || range.end.getTime() <= now) {
+      return false;
+    }
     const skillMatch = skill === 'all' || event.skill === skill;
     const locationMatch = location === 'all' || event.location === location;
     return skillMatch && locationMatch;
@@ -187,7 +198,13 @@ const createEventCard = (event) => {
 const renderEventsList = () => {
   const previousLocation = elements.locationFilter.value;
   const skill = elements.skillFilter.value;
-  const skillFiltered = state.events.filter(
+  const now = Date.now();
+  const upcomingEvents = state.events.filter((event) => {
+    const range = getEventTimeRange(event);
+    return range && range.end.getTime() > now;
+  });
+
+  const skillFiltered = upcomingEvents.filter(
     (event) => skill === 'all' || event.skill === skill
   );
 
@@ -229,8 +246,9 @@ const renderEventsList = () => {
 };
 
 const renderMySessions = () => {
+  const referenceDate = new Date();
   const joinedEvents = state.events
-    .filter((event) => event.joined)
+    .filter((event) => event.joined && !hasEventEnded(event, referenceDate))
     .sort(
       (a, b) =>
         new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime()
@@ -354,8 +372,9 @@ const renderOwnerAlerts = (events) => {
 };
 
 const renderMyAppointments = () => {
+  const referenceDate = new Date();
   const createdEvents = state.events
-    .filter((event) => event.createdByMe)
+    .filter((event) => event.createdByMe && !hasEventEnded(event, referenceDate))
     .sort(
       (a, b) =>
         new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime()
@@ -434,6 +453,53 @@ const bindFilters = (handler) => {
   );
 };
 
+const renderEventsHistory = () => {
+  if (!elements.eventsHistory) {
+    return;
+  }
+  const referenceDate = new Date();
+  const historyEvents = state.events
+    .filter((event) => isEventInHistoryWindow(event, referenceDate))
+    .sort(
+      (a, b) =>
+        new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime()
+    )
+    .slice(0, 6);
+
+  elements.eventsHistory.innerHTML = '';
+
+  if (!historyEvents.length) {
+    elements.eventsHistory.innerHTML =
+      `<div class="empty">Keine vergangenen Sessions in den letzten ${HISTORY_WINDOW_DAYS} Tagen.</div>`;
+    return;
+  }
+
+  historyEvents.forEach((event) => {
+    const range = getEventTimeRange(event);
+    const attendees = Math.max(0, Number(event.attendees) || 0);
+    const capacity = Math.max(attendees, Number(event.capacity) || 0);
+    const card = document.createElement('article');
+    card.classList.add('event-history-card');
+    card.innerHTML = `
+      <div class="event-history-card__header">
+        <h4>${event.title}</h4>
+        <span>${new Date(`${event.date}T00:00`).toLocaleDateString('de-DE')}</span>
+      </div>
+      <div class="event-history-card__meta">
+        <span>📍 ${event.location}</span>
+        <span>⏱️ ${formatTimeRange(event)}</span>
+        <span>🎯 ${event.skill}</span>
+      </div>
+      <div class="event-history-card__footer">
+        <small class="muted">${attendees}/${capacity} Zusagen · Beendet ${formatRelativeTime(
+          range?.end?.toISOString() || event.date
+        )}</small>
+      </div>
+    `;
+    elements.eventsHistory.appendChild(card);
+  });
+};
+
 export {
   registerToggleHandler,
   renderEventsList,
@@ -441,4 +507,5 @@ export {
   renderMyAppointments,
   updateStats,
   bindFilters,
+  renderEventsHistory,
 };

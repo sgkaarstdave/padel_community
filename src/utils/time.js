@@ -1,3 +1,5 @@
+const HISTORY_WINDOW_DAYS = 14;
+
 const padNumber = (value) => value.toString().padStart(2, '0');
 
 const formatTimeRange = (event) => {
@@ -26,6 +28,53 @@ const getEventTimeRange = (event) => {
   return { start, end };
 };
 
+const hasEventStarted = (event, referenceDate = new Date()) => {
+  const range = getEventTimeRange(event);
+  if (!range) {
+    return false;
+  }
+  return range.start.getTime() <= referenceDate.getTime();
+};
+
+const hasEventEnded = (event, referenceDate = new Date()) => {
+  const range = getEventTimeRange(event);
+  if (!range) {
+    return false;
+  }
+  return range.end.getTime() <= referenceDate.getTime();
+};
+
+const getHistoryWindowStart = (referenceDate = new Date()) => {
+  const windowStart = new Date(referenceDate);
+  windowStart.setDate(windowStart.getDate() - HISTORY_WINDOW_DAYS);
+  return windowStart;
+};
+
+const isActiveOrRecent = (event, referenceDate = new Date()) => {
+  const range = getEventTimeRange(event);
+  if (!range) {
+    return false;
+  }
+  const { end } = range;
+  if (end.getTime() > referenceDate.getTime()) {
+    return true;
+  }
+  const windowStart = getHistoryWindowStart(referenceDate);
+  return end.getTime() >= windowStart.getTime();
+};
+
+const isEventInHistoryWindow = (event, referenceDate = new Date()) => {
+  const range = getEventTimeRange(event);
+  if (!range) {
+    return false;
+  }
+  const { end } = range;
+  const windowStart = getHistoryWindowStart(referenceDate);
+  return (
+    end.getTime() < referenceDate.getTime() && end.getTime() >= windowStart.getTime()
+  );
+};
+
 const eventsOverlap = (a, b) => {
   const rangeA = getEventTimeRange(a);
   const rangeB = getEventTimeRange(b);
@@ -51,6 +100,11 @@ export {
   padNumber,
   formatTimeRange,
   getEventTimeRange,
+  hasEventStarted,
+  hasEventEnded,
+  isActiveOrRecent,
+  isEventInHistoryWindow,
+  HISTORY_WINDOW_DAYS,
   eventsOverlap,
   getStartOfWeek,
   toISODate,

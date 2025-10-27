@@ -1,5 +1,6 @@
 const elements = {
   eventsList: document.getElementById('eventsList'),
+  eventsHistory: document.getElementById('eventsHistory'),
   mySessionsList: document.getElementById('mySessionsList'),
   myAppointmentsList: document.getElementById('myAppointmentsList'),
   ownerAlerts: document.getElementById('ownerAlerts'),
