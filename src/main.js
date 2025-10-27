@@ -84,6 +84,7 @@ const refreshUI = () => {
 
 const hydrate = () => {
   setupNavigation();
+  switchView('my-appointments');
   setupCalendarControls(renderCalendar);
   bindFilters(() => {
     renderEventsList();

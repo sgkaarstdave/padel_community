@@ -26,11 +26,9 @@
           </div>
         </div>
         <nav class="sidebar__nav">
-          <button class="nav-btn active" data-target="dashboard">Dashboard</button>
-          <button class="nav-btn" data-target="my-sessions">Meine Sessions</button>
-          <button class="nav-btn" data-target="my-appointments">Meine Termine</button>
-          <button class="nav-btn" data-target="create">Termin erstellen</button>
-          <button class="nav-btn" data-target="discover">Padel-Spots</button>
+          <button class="nav-btn active" data-target="my-appointments">
+            Meine Termine
+          </button>
         </nav>
         <div class="sidebar__footer">
           <p class="muted">
@@ -42,15 +40,15 @@
       <main>
         <header class="topbar">
           <div>
-            <h2 id="view-title">Community Dashboard</h2>
+            <h2 id="view-title">Meine Termine</h2>
             <p class="muted">
-              Organisiere Spiele, lade Freunde ein und wachse gemeinsam mit der
-              Padel Community.
+              Verwalte deine erstellten Matches, passe Details an und behalte
+              alle Zusagen im Blick.
             </p>
           </div>
         </header>
 
-        <section id="dashboard-view" class="view active">
+        <section id="dashboard-view" class="view">
           <div class="stats-grid">
             <article class="stat-card">
               <h3>Aktive Matches</h3>
@@ -120,21 +118,7 @@
           </section>
         </section>
 
-        <section id="my-appointments-view" class="view">
-          <section class="panel">
-            <div class="panel__header">
-              <h3>Meine Termine</h3>
-              <p class="muted">
-                Übersicht über deine erstellten Matches inklusive aktueller Zu-
-                und Absagen.
-              </p>
-            </div>
-            <div id="ownerAlerts" class="alert-stack"></div>
-            <div id="myAppointmentsList" class="events-list"></div>
-          </section>
-        </section>
-
-        <section id="create-view" class="view">
+        <section id="my-appointments-view" class="view active">
           <form id="eventForm" class="panel form" data-mode="create">
             <div class="form__header">
               <h3>Neuen Termin erstellen</h3>
@@ -189,8 +173,18 @@
                 <input type="number" name="duration" min="1" max="6" value="2" required />
               </label>
               <label>
-                Gesamtkosten (€)
-                <input type="number" name="totalCost" min="0" value="40" step="0.01" />
+                <span class="label-text"
+                  >Gesamtkosten (€)
+                  <span class="required-marker" aria-hidden="true">*</span></span
+                >
+                <input
+                  type="number"
+                  name="totalCost"
+                  min="0"
+                  value="40"
+                  step="0.01"
+                  required
+                />
               </label>
               <label>
                 <span class="label-text"
@@ -245,6 +239,17 @@
               </button>
             </div>
           </form>
+          <section class="panel">
+            <div class="panel__header">
+              <h3>Meine Termine</h3>
+              <p class="muted">
+                Übersicht über deine erstellten Matches inklusive aktueller Zu-
+                und Absagen.
+              </p>
+            </div>
+            <div id="ownerAlerts" class="alert-stack"></div>
+            <div id="myAppointmentsList" class="events-list"></div>
+          </section>
         </section>
 
         <section id="discover-view" class="view">
