@@ -198,6 +198,42 @@ const formatTimeRange = (event) => {
 
 const padNumber = (value) => value.toString().padStart(2, '0');
 
+const getEventTimeRange = (event) => {
+  if (!event?.date || !event?.time) {
+    return null;
+  }
+  const start = new Date(`${event.date}T${event.time}`);
+  if (Number.isNaN(start.getTime())) {
+    return null;
+  }
+  const duration = Number(event.duration);
+  const durationHours = Number.isFinite(duration) && duration > 0 ? duration : 2;
+  const end = new Date(start);
+  end.setMinutes(end.getMinutes() + Math.round(durationHours * 60));
+  return { start, end };
+};
+
+const eventsOverlap = (a, b) => {
+  const rangeA = getEventTimeRange(a);
+  const rangeB = getEventTimeRange(b);
+  if (!rangeA || !rangeB) {
+    return false;
+  }
+  return rangeA.start < rangeB.end && rangeB.start < rangeA.end;
+};
+
+const findConflictingSession = (targetEvent) => {
+  if (!targetEvent) {
+    return null;
+  }
+  return state.events.find(
+    (event) => event.id !== targetEvent.id && event.joined && eventsOverlap(event, targetEvent)
+  );
+};
+
+const CONFLICT_MESSAGE =
+  'Die Session überschneidet sich mit einer anderen, der du bereits zugesagt hast.';
+
 const computeRecentTrend = () => {
   const since = Date.now() - 24 * 60 * 60 * 1000;
   return state.events.reduce((total, event) => {
@@ -493,6 +529,15 @@ const updateEventById = (id, updater) => {
 };
 
 const joinSession = (id) => {
+  const targetEvent = state.events.find((event) => event.id === id);
+  if (!targetEvent) {
+    return false;
+  }
+  const conflictingSession = findConflictingSession(targetEvent);
+  if (conflictingSession) {
+    window.alert(CONFLICT_MESSAGE);
+    return false;
+  }
   const now = new Date();
   const changed = updateEventById(id, (event) => {
     const deadlinePassed =
@@ -579,6 +624,12 @@ const handleFormSubmit = (event) => {
       { timestamp: createdAt, type: 'join' },
     ],
   };
+
+  const conflictingSession = findConflictingSession(normalized);
+  if (conflictingSession) {
+    window.alert(CONFLICT_MESSAGE);
+    return;
+  }
 
   state.events = [normalized, ...state.events];
   event.target.reset();
