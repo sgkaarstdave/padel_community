@@ -20,6 +20,10 @@
   padding: 0;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   background: radial-gradient(circle at top left, #0b1120, #020617);
   color: var(--text);

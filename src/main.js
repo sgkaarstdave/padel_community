@@ -25,6 +25,9 @@ const setupLocationSelector = () => {
   const customInput = document.getElementById('customLocationInput');
   const form = document.getElementById('eventForm');
 
+  if (customWrapper) {
+    customWrapper.hidden = true;
+  }
   select.innerHTML = '';
 
   places.forEach((place) => {
