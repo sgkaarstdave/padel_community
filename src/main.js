@@ -5,6 +5,7 @@ import {
   registerToggleHandler,
   renderEventsList,
   renderMySessions,
+  renderMyAppointments,
   updateStats,
   bindFilters,
 } from './views/events.js';
@@ -14,6 +15,7 @@ import { renderPlaces } from './views/places.js';
 const refreshUI = () => {
   renderEventsList();
   renderMySessions();
+  renderMyAppointments();
   renderCalendar();
   updateStats();
 };

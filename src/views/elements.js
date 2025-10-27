@@ -1,6 +1,8 @@
 const elements = {
   eventsList: document.getElementById('eventsList'),
   mySessionsList: document.getElementById('mySessionsList'),
+  myAppointmentsList: document.getElementById('myAppointmentsList'),
+  ownerAlerts: document.getElementById('ownerAlerts'),
   calendarGrid: document.getElementById('calendarGrid'),
   calendarRange: document.getElementById('calendarRange'),
   skillFilter: document.getElementById('skillFilter'),

@@ -75,6 +75,12 @@ const createEventControllers = ({ refreshUI, navigate }) => {
       return;
     }
     if (event.joined) {
+      const confirmed = window.confirm(
+        'Willst du deine Teilnahme wirklich zurückziehen?'
+      );
+      if (!confirmed) {
+        return;
+      }
       withdrawFromSession(id);
     } else {
       joinSession(id);
@@ -111,6 +117,7 @@ const createEventControllers = ({ refreshUI, navigate }) => {
       paymentLink: newEvent.paymentLink?.trim() || '',
       createdAt,
       joined: true,
+      createdByMe: true,
       history: [
         { timestamp: createdAt, type: 'create' },
         { timestamp: createdAt, type: 'join' },

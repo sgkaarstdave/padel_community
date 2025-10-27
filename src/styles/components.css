@@ -189,6 +189,88 @@
   color: var(--muted);
 }
 
+.alert-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alert {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  font-size: 0.9rem;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.alert--warning {
+  background: rgba(248, 113, 113, 0.18);
+  color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.alert--muted {
+  background: rgba(30, 41, 59, 0.65);
+  color: var(--muted);
+  border-style: dashed;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.owner-card {
+  grid-template-columns: 1fr minmax(200px, 260px);
+  border-left: 4px solid rgba(59, 130, 246, 0.35);
+}
+
+.owner-card__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.owner-card__sidebar small {
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+.owner-meta span {
+  background: rgba(30, 41, 59, 0.75);
+}
+
+.history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.history__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.7);
+  border-left: 4px solid rgba(148, 163, 184, 0.2);
+}
+
+.history__item--join {
+  border-left-color: rgba(52, 211, 153, 0.6);
+}
+
+.history__item--leave {
+  border-left-color: rgba(248, 113, 113, 0.6);
+}
+
+.history__item--create {
+  border-left-color: rgba(59, 130, 246, 0.6);
+}
+
 .calendar__badge {
   display: inline-flex;
   align-items: center;

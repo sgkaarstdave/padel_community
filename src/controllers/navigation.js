@@ -8,6 +8,7 @@ const switchView = (target) => {
   const titles = {
     dashboard: 'Community Dashboard',
     'my-sessions': 'Meine Sessions',
+    'my-appointments': 'Meine Termine',
     create: 'Neuen Termin erstellen',
     discover: 'Padel-Spots entdecken',
   };

@@ -28,6 +28,7 @@
         <nav class="sidebar__nav">
           <button class="nav-btn active" data-target="dashboard">Dashboard</button>
           <button class="nav-btn" data-target="my-sessions">Meine Sessions</button>
+          <button class="nav-btn" data-target="my-appointments">Meine Termine</button>
           <button class="nav-btn" data-target="create">Termin erstellen</button>
           <button class="nav-btn" data-target="discover">Padel-Spots</button>
         </nav>
@@ -108,6 +109,20 @@
               </p>
             </div>
             <div id="mySessionsList" class="events-list"></div>
+          </section>
+        </section>
+
+        <section id="my-appointments-view" class="view">
+          <section class="panel">
+            <div class="panel__header">
+              <h3>Meine Termine</h3>
+              <p class="muted">
+                Übersicht über deine erstellten Matches inklusive aktueller Zu-
+                und Absagen.
+              </p>
+            </div>
+            <div id="ownerAlerts" class="alert-stack"></div>
+            <div id="myAppointmentsList" class="events-list"></div>
           </section>
         </section>
 
