@@ -12,6 +12,8 @@
 
   .sidebar__nav {
     flex-direction: row;
+    flex-wrap: wrap;
+    gap: 12px;
   }
 
   .sidebar__footer {
@@ -28,13 +30,157 @@
     padding: 20px;
   }
 
-  .topbar {
-    flex-direction: column;
-    gap: 12px;
+  .calendar__grid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 10px;
     align-items: flex-start;
   }
 
+  .app-shell {
+    border-radius: 20px;
+  }
+
+  .sidebar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .brand {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .brand h1 {
+    font-size: 1.1rem;
+  }
+
+  .sidebar__nav {
+    width: 100%;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .nav-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  main {
+    padding: 18px;
+    gap: 18px;
+  }
+
+  .topbar {
+    gap: 10px;
+    width: 100%;
+  }
+
+  .panel {
+    padding: 18px;
+    gap: 16px;
+  }
+
+  .panel__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .filters {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .filters select {
+    flex: 1 1 160px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .event-card {
+    grid-template-columns: 1fr;
+  }
+
+  .event-actions {
+    align-items: stretch;
+  }
+
+  .event-actions button,
+  .primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .calendar__controls {
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .calendar__controls button {
+    flex: 1 1 120px;
+  }
+
   .calendar__grid {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+
+  .calendar__day {
+    min-height: 120px;
+  }
+
+  .form__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .places__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 6px;
+  }
+
+  .app-shell {
+    border-radius: 16px;
+  }
+
+  .brand {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .brand__icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .topbar h2 {
+    font-size: 1.35rem;
+  }
+
+  .stat-card {
+    padding: 16px;
+  }
+
+  .calendar__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar__controls button {
+    flex: 1 1 100px;
   }
 }
