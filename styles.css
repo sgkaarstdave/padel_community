@@ -252,6 +252,32 @@ main {
   font-size: 0.85rem;
 }
 
+.payment-hint {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.payment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(45, 212, 191, 0.18);
+  color: #0f172a;
+  text-decoration: none;
+  font-weight: 600;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 12px 30px rgba(34, 211, 238, 0.2);
+}
+
+.payment-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 36px rgba(34, 211, 238, 0.3);
+}
+
 .deadline.overdue {
   background: rgba(248, 113, 113, 0.18) !important;
   color: var(--danger);
