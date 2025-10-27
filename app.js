@@ -61,9 +61,10 @@ const defaultEvents = () => {
       location: 'Padel Club Hamburg',
       skill: 'Intermediate',
       capacity: 4,
-      price: 12,
+      totalCost: 48,
       notes: 'Wir spielen auf Court 2. Bälle bringe ich mit.',
       owner: 'Lea',
+      paymentLink: 'https://paypal.me/padelhamburg',
       offset: 1,
       hour: 8,
       duration: 2,
@@ -73,9 +74,10 @@ const defaultEvents = () => {
       location: 'Padel Base Berlin',
       skill: 'Beginner',
       capacity: 4,
-      price: 9,
+      totalCost: 36,
       notes: 'Perfekt für Einsteiger:innen. Coaching inklusive.',
       owner: 'Marco',
+      paymentLink: 'https://paypal.me/padelberlin',
       offset: 2,
       hour: 12,
       duration: 1.5,
@@ -85,9 +87,10 @@ const defaultEvents = () => {
       location: 'Rhein Main Padel Arena',
       skill: 'Advanced',
       capacity: 6,
-      price: 18,
+      totalCost: 108,
       notes: 'High intensity Training. Bitte 10 Minuten früher da sein.',
       owner: 'Sara',
+      paymentLink: 'https://paypal.me/padelrheinmain',
       offset: 3,
       hour: 19,
       duration: 2,
@@ -97,9 +100,10 @@ const defaultEvents = () => {
       location: 'Munich Smash Hub',
       skill: 'Intermediate',
       capacity: 8,
-      price: 15,
+      totalCost: 120,
       notes: 'Mix & Match Format, wir rotieren nach jedem Satz.',
       owner: 'Jonas',
+      paymentLink: 'https://paypal.me/padelmunich',
       offset: 5,
       hour: 10,
       duration: 3,
@@ -123,9 +127,10 @@ const defaultEvents = () => {
       location: entry.location,
       skill: entry.skill,
       capacity: entry.capacity,
-      price: entry.price,
+      totalCost: entry.totalCost,
       notes: entry.notes,
       owner: entry.owner,
+      paymentLink: entry.paymentLink || '',
       date: dateStr,
       time: timeStr,
       duration: entry.duration,
@@ -143,15 +148,32 @@ const loadEvents = () => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return parsed.map((event) => ({
-        ...event,
-        attendees: Number(event.attendees) || 0,
-        capacity: Number(event.capacity) || 4,
-        duration: Number(event.duration) || 2,
-        price: Number(event.price) || 0,
-        joined: Boolean(event.joined),
-        history: event.history || [],
-      }));
+      return parsed.map((event) => {
+        const capacity = Number(event.capacity) || 4;
+        const legacyPrice = Number(event.price);
+        let totalCost = Number(event.totalCost);
+        if (!Number.isFinite(totalCost) || totalCost <= 0) {
+          if (Number.isFinite(legacyPrice) && legacyPrice > 0) {
+            totalCost = legacyPrice * Math.max(1, capacity);
+          } else {
+            totalCost = 0;
+          }
+        }
+        if (!Number.isFinite(totalCost)) {
+          totalCost = 0;
+        }
+        totalCost = Math.max(0, Math.round(totalCost * 100) / 100);
+        return {
+          ...event,
+          attendees: Number(event.attendees) || 0,
+          capacity,
+          duration: Number(event.duration) || 2,
+          totalCost,
+          joined: Boolean(event.joined),
+          history: event.history || [],
+          paymentLink: event.paymentLink || '',
+        };
+      });
     }
   } catch (error) {
     console.error('Konnte Events nicht laden', error);
@@ -197,6 +219,17 @@ const formatTimeRange = (event) => {
 };
 
 const padNumber = (value) => value.toString().padStart(2, '0');
+
+const currencyFormatter = new Intl.NumberFormat('de-DE', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+});
+
+const formatCurrency = (value) => {
+  const numeric = Number(value);
+  return currencyFormatter.format(Number.isFinite(numeric) ? numeric : 0);
+};
 
 const getEventTimeRange = (event) => {
   if (!event?.date || !event?.time) {
@@ -422,11 +455,17 @@ const getFilteredEvents = () => {
 };
 
 const getEventMeta = (event) => {
-  const openSpots = Math.max(0, event.capacity - event.attendees);
+  const totalCost = Number(event.totalCost) || 0;
+  const attendeeCount = Math.max(0, Number(event.attendees) || 0);
+  const normalizedAttendees = Math.max(1, attendeeCount);
+  const capacity = Math.max(normalizedAttendees, Number(event.capacity) || 0);
+  const openSpots = Math.max(0, capacity - attendeeCount);
   const isFull = openSpots <= 0;
   const isDeadlineReached =
     !!event.deadline && new Date(event.deadline).getTime() < Date.now();
   const buttonDisabled = !event.joined && (isFull || isDeadlineReached);
+  const currentShare = totalCost / normalizedAttendees;
+  const projectedShare = capacity > 0 ? totalCost / capacity : currentShare;
   const buttonLabel = event.joined
     ? 'Teilnahme zurückziehen'
     : isDeadlineReached
@@ -435,18 +474,43 @@ const getEventMeta = (event) => {
     ? 'Match voll'
     : 'Beitreten';
   const statusLabel = event.joined
-    ? 'Du nimmst teil'
+    ? `Du nimmst teil – dein Anteil aktuell: ${formatCurrency(currentShare)}`
     : isDeadlineReached
     ? 'Anmeldung geschlossen'
     : isFull
     ? 'Match ist voll'
-    : `${openSpots} Plätze frei`;
-  return { openSpots, isFull, isDeadlineReached, buttonDisabled, buttonLabel, statusLabel };
+    : `${openSpots} Plätze frei – aktuell ca. ${formatCurrency(
+        currentShare
+      )} p.P.`;
+  return {
+    openSpots,
+    isFull,
+    isDeadlineReached,
+    buttonDisabled,
+    buttonLabel,
+    statusLabel,
+    currentShare,
+    projectedShare,
+    totalCost,
+    attendees: attendeeCount,
+    capacity,
+  };
 };
 
 const createEventCard = (event) => {
-  const { openSpots, isFull, isDeadlineReached, buttonDisabled, buttonLabel, statusLabel } =
-    getEventMeta(event);
+  const {
+    openSpots,
+    isFull,
+    isDeadlineReached,
+    buttonDisabled,
+    buttonLabel,
+    statusLabel,
+    currentShare,
+    projectedShare,
+    totalCost,
+    attendees,
+    capacity,
+  } = getEventMeta(event);
   const card = document.createElement('article');
   card.classList.add('event-card');
   if (event.joined) {
@@ -466,8 +530,10 @@ const createEventCard = (event) => {
         <div class="event-meta">
           <span>🗓️ ${new Date(`${event.date}T00:00`).toLocaleDateString('de-DE')}</span>
           <span>⏱️ ${formatTimeRange(event)}</span>
-          <span>💶 ${event.price ? event.price.toFixed(2) : '0.00'} €</span>
-          <span>👤 ${event.attendees}/${event.capacity}</span>
+          <span>💶 Gesamtkosten: ${formatCurrency(totalCost)}</span>
+          <span>🤝 Anteil aktuell: ${formatCurrency(currentShare)} (${attendees} Zusagen)</span>
+          <span>📊 Bei ${capacity} Spieler:innen: ${formatCurrency(projectedShare)} p.P.</span>
+          <span>👤 ${attendees}/${capacity}</span>
           ${
             event.deadline
               ? `<span class="deadline ${
@@ -477,11 +543,25 @@ const createEventCard = (event) => {
           }
         </div>
         ${event.notes ? `<p class="muted">${event.notes}</p>` : ''}
+        ${
+          event.paymentLink
+            ? `<div class="payment-hint">
+                <a class="payment-link" href="${event.paymentLink}" target="_blank" rel="noopener">
+                  💸 PayPal-Link öffnen
+                </a>
+                <small class="muted">${
+                  event.joined
+                    ? 'Nutze den Link nach dem Match für den Kostenanteil.'
+                    : 'So können Teilnehmende unkompliziert ihren Anteil senden.'
+                }</small>
+              </div>`
+            : ''
+        }
       </div>
       <div class="event-actions">
         <div class="capacity-bar"><span style="width: ${Math.min(
           100,
-          (event.attendees / event.capacity) * 100
+          (attendees / Math.max(1, capacity)) * 100
         )}%"></span></div>
         <small class="muted">${statusLabel}</small>
         <button ${buttonDisabled ? 'disabled' : ''} data-id="${event.id}">${buttonLabel}</button>
@@ -603,6 +683,11 @@ const handleFormSubmit = (event) => {
   const attendees = 1;
   const createdAt = new Date().toISOString();
 
+  const totalCostInput = Math.max(0, Number(newEvent.totalCost));
+  const normalizedTotalCost = Number.isFinite(totalCostInput)
+    ? Math.round(totalCostInput * 100) / 100
+    : 0;
+
   const normalized = {
     id,
     title: newEvent.title.trim(),
@@ -610,13 +695,14 @@ const handleFormSubmit = (event) => {
     date: newEvent.date,
     time: newEvent.time,
     duration: Number(newEvent.duration) || 2,
-    price: Number(newEvent.price) || 0,
-    capacity: Number(newEvent.capacity) || 4,
+    totalCost: normalizedTotalCost || 0,
+    capacity: Math.max(1, Number(newEvent.capacity)) || 4,
     skill: newEvent.skill,
     notes: newEvent.notes?.trim() ?? '',
     owner: 'Du',
     attendees,
     deadline: newEvent.deadline || '',
+    paymentLink: newEvent.paymentLink?.trim() || '',
     createdAt,
     joined: true,
     history: [
