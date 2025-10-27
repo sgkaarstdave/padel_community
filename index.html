@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Padel Community Hub</title>
+    <script
+      src="https://accounts.google.com/gsi/client"
+      async
+      defer
+    ></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -16,6 +21,128 @@
     <link rel="stylesheet" href="src/styles/responsive.css" />
   </head>
   <body>
+    <div id="authGate" class="auth-gate" hidden>
+      <div class="auth-panel">
+        <div class="auth-panel__tabs" role="tablist">
+          <button
+            type="button"
+            class="auth-tab is-active"
+            data-auth-view-target="login"
+            role="tab"
+            aria-selected="true"
+          >
+            Anmelden
+          </button>
+          <button
+            type="button"
+            class="auth-tab"
+            data-auth-view-target="register"
+            role="tab"
+            aria-selected="false"
+          >
+            Registrieren
+          </button>
+        </div>
+        <div class="auth-card" data-view="login">
+          <h2>Willkommen zurück</h2>
+          <p class="muted">
+            Melde dich mit deiner E-Mail-Adresse an oder nutze deinen Google
+            Account.
+          </p>
+          <form id="loginForm" class="auth-form" novalidate>
+            <label>
+              <span>E-Mail-Adresse</span>
+              <input
+                type="email"
+                name="email"
+                autocomplete="email"
+                required
+              />
+            </label>
+            <label>
+              <span>Passwort</span>
+              <input
+                type="password"
+                name="password"
+                autocomplete="current-password"
+                minlength="8"
+                required
+              />
+            </label>
+            <p class="form-error" role="alert" hidden></p>
+            <button type="submit" class="primary auth-submit">Anmelden</button>
+          </form>
+          <div class="auth-divider" role="separator">
+            <span></span>
+            <p>oder</p>
+            <span></span>
+          </div>
+          <div
+            id="googleSignInButton"
+            class="auth-google"
+            data-client-id=""
+          ></div>
+          <p id="googleError" class="form-error" role="alert" hidden></p>
+        </div>
+        <div class="auth-card" data-view="register" hidden>
+          <h2>Neues Konto anlegen</h2>
+          <p class="muted">
+            Registriere dich mit deiner E-Mail-Adresse und wähle ein sicheres
+            Passwort.
+          </p>
+          <form id="registerForm" class="auth-form" novalidate>
+            <label>
+              <span>Vor- &amp; Nachname</span>
+              <input
+                type="text"
+                name="displayName"
+                autocomplete="name"
+                placeholder="z. B. Lea Schmidt"
+                required
+              />
+            </label>
+            <label>
+              <span>E-Mail-Adresse</span>
+              <input
+                type="email"
+                name="email"
+                autocomplete="email"
+                required
+              />
+            </label>
+            <label>
+              <span>Passwort</span>
+              <input
+                type="password"
+                name="password"
+                autocomplete="new-password"
+                minlength="8"
+                required
+              />
+            </label>
+            <label>
+              <span>Passwort bestätigen</span>
+              <input
+                type="password"
+                name="confirmPassword"
+                autocomplete="new-password"
+                minlength="8"
+                required
+              />
+            </label>
+            <p class="muted auth-hint">
+              Das Passwort muss mindestens acht Zeichen lang sein und Buchstaben
+              sowie Zahlen enthalten.
+            </p>
+            <p class="form-error" role="alert" hidden></p>
+            <button type="submit" class="primary auth-submit">
+              Konto erstellen
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
@@ -42,12 +169,24 @@
       </aside>
       <main>
         <header class="topbar">
-          <div>
+          <div class="topbar__intro">
             <h2 id="view-title">Meine Termine</h2>
             <p class="muted" id="view-description">
               Verwalte deine erstellten Matches, passe Details an und behalte
               alle Zusagen im Blick.
             </p>
+          </div>
+          <div class="user-menu" id="userMenu" hidden>
+            <div class="user-menu__avatar" id="userAvatar" aria-hidden="true">
+              👤
+            </div>
+            <div class="user-menu__details">
+              <span id="userDisplayName"></span>
+              <span id="userEmail" class="muted"></span>
+            </div>
+            <button type="button" id="logoutButton" class="button button--ghost">
+              Abmelden
+            </button>
           </div>
         </header>
 
