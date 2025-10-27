@@ -30,6 +30,14 @@ body {
   padding: 24px;
 }
 
+body.is-authenticated {
+  align-items: stretch;
+}
+
+body:not(.is-authenticated) {
+  align-items: center;
+}
+
 .app-shell {
   width: min(1200px, 100%);
   background: rgba(15, 23, 42, 0.75);
@@ -100,6 +108,29 @@ body {
 
 .sidebar__footer {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sidebar__user {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar__user-name {
+  font-weight: 600;
+}
+
+.sidebar__user-email {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.sidebar__tip {
+  font-size: 0.85rem;
+  line-height: 1.4;
 }
 
 .muted {
@@ -114,7 +145,15 @@ main {
   gap: 24px;
 }
 
+
 .topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar > div {
   display: flex;
   flex-direction: column;
   gap: 12px;

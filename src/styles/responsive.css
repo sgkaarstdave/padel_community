@@ -17,7 +17,9 @@
   }
 
   .sidebar__footer {
-    display: none;
+    margin-top: 0;
+    align-items: flex-end;
+    gap: 12px;
   }
 }
 
@@ -51,6 +53,15 @@
     gap: 16px;
   }
 
+  .sidebar__footer {
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .sidebar__user {
+    align-items: flex-start;
+  }
+
   .brand {
     width: 100%;
     justify-content: space-between;
@@ -77,6 +88,8 @@
   }
 
   .topbar {
+    flex-direction: column;
+    align-items: flex-start;
     gap: 10px;
     width: 100%;
   }

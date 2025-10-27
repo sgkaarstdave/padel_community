@@ -1,4 +1,5 @@
 import { state, updateEventById, prependEvent, removeEventById } from '../state/store.js';
+import { getCurrentUser } from '../state/auth.js';
 import {
   eventsOverlap,
   getEventTimeRange,
@@ -299,6 +300,10 @@ const createEventControllers = ({ refreshUI, navigate }) => {
         return;
       }
 
+      const currentUser = getCurrentUser();
+      const displayName =
+        currentUser?.name || (currentUser?.email ? currentUser.email.split('@')[0] : 'Du');
+
       const updated = updateEventById(editingEventId, (event) => {
         if (!event.createdByMe) {
           return null;
@@ -310,6 +315,8 @@ const createEventControllers = ({ refreshUI, navigate }) => {
           ...event,
           ...normalized,
           capacity,
+          owner: displayName || event.owner,
+          createdByName: event.createdByName || displayName || event.owner,
           history: [{ timestamp: now.toISOString(), type: 'update' }, ...history],
         };
       });
@@ -325,6 +332,10 @@ const createEventControllers = ({ refreshUI, navigate }) => {
     const id = `evt-${crypto.randomUUID?.() || Date.now()}`;
     const attendees = 1;
     const createdAt = now.toISOString();
+    const currentUser = getCurrentUser();
+    const userId = currentUser?.id ?? null;
+    const displayName =
+      currentUser?.name || (currentUser?.email ? currentUser.email.split('@')[0] : 'Du');
 
     const draft = {
       ...normalized,
@@ -340,11 +351,13 @@ const createEventControllers = ({ refreshUI, navigate }) => {
     const eventToStore = {
       ...normalized,
       id,
-      owner: 'Du',
+      owner: displayName,
+      createdBy: userId,
+      createdByName: displayName,
       attendees,
       createdAt,
       joined: true,
-      createdByMe: true,
+      createdByMe: Boolean(userId),
       history: [
         { timestamp: createdAt, type: 'create' },
         { timestamp: createdAt, type: 'join' },

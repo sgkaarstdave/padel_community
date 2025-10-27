@@ -1,6 +1,7 @@
 import { setupNavigation, switchView } from './controllers/navigation.js';
 import { setupCalendarControls } from './controllers/calendar.js';
 import { createEventControllers } from './controllers/events.js';
+import { setupAuth } from './controllers/auth.js';
 import {
   registerToggleHandler,
   registerOwnerHandlers,
@@ -14,7 +15,8 @@ import {
 import { renderCalendar } from './views/calendar.js';
 import { renderPlaces } from './views/places.js';
 import { places } from './state/storage.js';
-import { pruneExpiredEvents } from './state/store.js';
+import { pruneExpiredEvents, applyUserContext } from './state/store.js';
+import { getCurrentUser } from './state/auth.js';
 
 const setupLocationSelector = () => {
   const select = document.getElementById('locationSelect');
@@ -84,7 +86,7 @@ const refreshUI = () => {
 
 const hydrate = () => {
   setupNavigation();
-  switchView('my-appointments');
+  switchView('dashboard');
   setupCalendarControls(renderCalendar);
   bindFilters(() => {
     renderEventsList();
@@ -102,9 +104,28 @@ const hydrate = () => {
 
   registerToggleHandler(toggleParticipation);
   registerOwnerHandlers({ onEdit: startEditing, onDelete: deleteEvent });
+
+  const initialUser = getCurrentUser();
+  applyUserContext(initialUser);
   refreshUI();
 
-  document.getElementById('eventForm').addEventListener('submit', handleFormSubmit);
+  const form = document.getElementById('eventForm');
+  if (form) {
+    form.addEventListener('submit', handleFormSubmit);
+  }
+
+  setupAuth({
+    onAuthenticated: (user) => {
+      applyUserContext(user);
+      refreshUI();
+      switchView('dashboard');
+    },
+    onLogout: () => {
+      applyUserContext(null);
+      refreshUI();
+      switchView('dashboard');
+    },
+  });
 };
 
 document.addEventListener('DOMContentLoaded', hydrate);

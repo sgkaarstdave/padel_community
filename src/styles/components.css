@@ -202,6 +202,21 @@
   background: rgba(30, 41, 59, 0.9);
 }
 
+.button--small {
+  padding: 8px 14px;
+  font-size: 0.85rem;
+}
+
+.button--full {
+  width: 100%;
+  justify-content: center;
+}
+
+.button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .button--ghost {
   background: transparent;
   border-color: rgba(148, 163, 184, 0.35);
@@ -351,6 +366,19 @@
 
 .owner-meta span {
   background: rgba(30, 41, 59, 0.75);
+}
+
+.user-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9rem;
 }
 
 .history {

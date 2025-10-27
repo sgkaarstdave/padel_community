@@ -7,6 +7,25 @@ const state = {
   recentJoins: 0,
 };
 
+const applyUserContext = (user) => {
+  const userId = user?.id ?? null;
+  const displayName = user?.name || (user?.email ? user.email.split('@')[0] : '');
+  state.events = state.events.map((event) => {
+    const createdBy = event.createdBy ?? null;
+    const isMine = Boolean(userId && createdBy && createdBy === userId);
+    const preservedOwner = event.owner || '';
+    const fallbackOwner = event.createdByName || preservedOwner;
+    return {
+      ...event,
+      createdBy,
+      createdByName: event.createdByName || (preservedOwner && preservedOwner !== 'Du' ? preservedOwner : null),
+      owner: isMine && displayName ? displayName : fallbackOwner,
+      createdByMe: isMine,
+    };
+  });
+  return state.events;
+};
+
 const updateEventById = (id, updater) => {
   let hasChanged = false;
   state.events = state.events.map((event) => {
@@ -75,6 +94,7 @@ const setRecentJoins = (value) => {
 
 export {
   state,
+  applyUserContext,
   updateEventById,
   prependEvent,
   removeEventById,

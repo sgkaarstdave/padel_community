@@ -14,9 +14,97 @@
     <link rel="stylesheet" href="src/styles/components.css" />
     <link rel="stylesheet" href="src/styles/views.css" />
     <link rel="stylesheet" href="src/styles/responsive.css" />
+    <link rel="stylesheet" href="src/styles/auth.css" />
   </head>
   <body>
-    <div class="app-shell">
+    <section id="auth-view" class="auth-view" data-mode="login">
+      <div class="auth-card">
+        <div class="auth-card__header">
+          <div class="auth-card__icon">🎾</div>
+          <div>
+            <h1>Padel Community Hub</h1>
+            <p>
+              Organisiere Matches, finde Spielpartner:innen und bleib mit deiner Community
+              verbunden.
+            </p>
+          </div>
+        </div>
+        <div class="auth-tabs">
+          <button type="button" class="auth-tab auth-tab--active" data-auth-toggle="login">
+            Anmelden
+          </button>
+          <button type="button" class="auth-tab" data-auth-toggle="register">
+            Registrieren
+          </button>
+        </div>
+        <form id="loginForm" class="auth-form" data-form="login" autocomplete="on">
+          <div class="auth-field">
+            <label for="loginEmail">E-Mail-Adresse</label>
+            <input type="email" id="loginEmail" name="email" autocomplete="email" required />
+          </div>
+          <div class="auth-field">
+            <label for="loginPassword">Passwort</label>
+            <input
+              type="password"
+              id="loginPassword"
+              name="password"
+              autocomplete="current-password"
+              minlength="8"
+              required
+            />
+          </div>
+          <button type="submit" class="primary auth-submit">Anmelden</button>
+        </form>
+        <form id="registerForm" class="auth-form" data-form="register" autocomplete="on" hidden>
+          <div class="auth-field">
+            <label for="registerName">Name</label>
+            <input
+              type="text"
+              id="registerName"
+              name="name"
+              autocomplete="name"
+              placeholder="Alex Muster"
+            />
+          </div>
+          <div class="auth-field">
+            <label for="registerEmail">E-Mail-Adresse</label>
+            <input type="email" id="registerEmail" name="email" autocomplete="email" required />
+          </div>
+          <div class="auth-field">
+            <label for="registerPassword">Passwort</label>
+            <input
+              type="password"
+              id="registerPassword"
+              name="password"
+              autocomplete="new-password"
+              minlength="8"
+              required
+            />
+          </div>
+          <div class="auth-field">
+            <label for="registerConfirm">Passwort bestätigen</label>
+            <input
+              type="password"
+              id="registerConfirm"
+              name="confirmPassword"
+              autocomplete="new-password"
+              minlength="8"
+              required
+            />
+          </div>
+          <button type="submit" class="primary auth-submit">Registrieren</button>
+        </form>
+        <div class="auth-separator">
+          <span></span>
+          <p>oder</p>
+          <span></span>
+        </div>
+        <div id="googleSignInButton" class="auth-google" data-client-id="YOUR_GOOGLE_CLIENT_ID"></div>
+        <p id="authMessage" class="auth-message" hidden></p>
+      </div>
+    </section>
+
+    <div class="app-shell" id="appShell" hidden>
       <aside class="sidebar">
         <div class="brand">
           <div class="brand__icon">🎾</div>
@@ -26,32 +114,41 @@
           </div>
         </div>
         <nav class="sidebar__nav">
-          <button class="nav-btn" data-target="dashboard">Community Dashboard</button>
+          <button class="nav-btn active" data-target="dashboard">Community Dashboard</button>
           <button class="nav-btn" data-target="my-sessions">Meine Sessions</button>
-          <button class="nav-btn active" data-target="my-appointments">
-            Meine Termine
-          </button>
+          <button class="nav-btn" data-target="my-appointments">Meine Termine</button>
           <button class="nav-btn" data-target="discover">Padel-Spots entdecken</button>
         </nav>
         <div class="sidebar__footer">
-          <p class="muted">
-            Tipp: Nutze Filter, um schnell die passenden Spiele nach Level und
-            Ort zu finden.
+          <div class="sidebar__user">
+            <span class="sidebar__user-name" id="userNameDisplay" hidden></span>
+            <span class="sidebar__user-email" id="userEmailDisplay" hidden></span>
+          </div>
+          <button
+            type="button"
+            class="button button--ghost button--small"
+            id="logoutButton"
+            hidden
+          >
+            Abmelden
+          </button>
+          <p class="muted sidebar__tip">
+            Tipp: Nutze Filter, um schnell die passenden Spiele nach Level und Ort zu finden.
           </p>
         </div>
       </aside>
       <main>
         <header class="topbar">
           <div>
-            <h2 id="view-title">Meine Termine</h2>
+            <h2 id="view-title">Community Dashboard</h2>
             <p class="muted" id="view-description">
-              Verwalte deine erstellten Matches, passe Details an und behalte
-              alle Zusagen im Blick.
+              Behalte offene Plätze, Zusagen und Trends der Community im Blick.
             </p>
           </div>
+          <span class="user-pill" id="userWelcome" hidden></span>
         </header>
 
-        <section id="dashboard-view" class="view">
+        <section id="dashboard-view" class="view active">
           <div class="stats-grid">
             <article class="stat-card">
               <h3>Aktive Matches</h3>
@@ -121,13 +218,12 @@
           </section>
         </section>
 
-        <section id="my-appointments-view" class="view active">
+        <section id="my-appointments-view" class="view">
           <form id="eventForm" class="panel form" data-mode="create">
             <div class="form__header">
               <h3>Neuen Termin erstellen</h3>
               <p class="muted">
-                Teile deinen geplanten Slot mit der Community und lass andere
-                beitreten.
+                Teile deinen geplanten Slot mit der Community und lass andere beitreten.
               </p>
             </div>
 
@@ -246,8 +342,7 @@
             <div class="panel__header">
               <h3>Meine Termine</h3>
               <p class="muted">
-                Übersicht über deine erstellten Matches inklusive aktueller Zu-
-                und Absagen.
+                Übersicht über deine erstellten Matches inklusive aktueller Zu- und Absagen.
               </p>
             </div>
             <div id="ownerAlerts" class="alert-stack"></div>
@@ -260,8 +355,7 @@
             <div class="form__header">
               <h3>Padel-Spots in deiner Nähe</h3>
               <p class="muted">
-                Entdecke beliebte Locations und buche direkt über den jeweiligen
-                Anbieter.
+                Entdecke beliebte Locations und buche direkt über den jeweiligen Anbieter.
               </p>
             </div>
             <div id="placesList" class="places__grid"></div>
