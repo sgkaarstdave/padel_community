@@ -132,6 +132,7 @@ const defaultEvents = () => {
       totalCost: entry.totalCost,
       notes: entry.notes,
       owner: entry.owner,
+      createdByName: entry.owner,
       paymentLink: entry.paymentLink || '',
       date: dateStr,
       time: timeStr,
@@ -168,8 +169,14 @@ const loadEvents = () => {
             totalCost = 0;
           }
           totalCost = Math.max(0, Math.round(totalCost * 100) / 100);
+          const createdByName =
+            event.createdByName || (event.owner && event.owner !== 'Du' ? event.owner : '');
+          const owner =
+            event.createdByMe || !event.owner || event.owner !== 'Du' ? event.owner : 'Community';
           return {
             ...event,
+            owner,
+            createdByName,
             attendees: Number(event.attendees) || 0,
             capacity,
             duration: Number(event.duration) || 2,

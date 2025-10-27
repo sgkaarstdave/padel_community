@@ -14,12 +14,13 @@ const applyUserContext = (user) => {
     const createdBy = event.createdBy ?? null;
     const isMine = Boolean(userId && createdBy && createdBy === userId);
     const preservedOwner = event.owner || '';
-    const fallbackOwner = event.createdByName || preservedOwner;
+    const recordedOwner = event.createdByName || '';
+    const normalizedFallback = recordedOwner || (preservedOwner && preservedOwner !== 'Du' ? preservedOwner : 'Community');
     return {
       ...event,
       createdBy,
-      createdByName: event.createdByName || (preservedOwner && preservedOwner !== 'Du' ? preservedOwner : null),
-      owner: isMine && displayName ? displayName : fallbackOwner,
+      createdByName: recordedOwner || (preservedOwner && preservedOwner !== 'Du' ? preservedOwner : null),
+      owner: isMine && displayName ? displayName : normalizedFallback,
       createdByMe: isMine,
     };
   });
