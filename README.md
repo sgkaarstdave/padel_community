@@ -21,9 +21,14 @@ entdecken.
 ## Projektstruktur
 
 ```
-├── app.js        # Kernlogik für Event-Management, Kalender und Interaktionen
-├── index.html    # Einstiegspunkt der Anwendung
-└── styles.css    # Stildefinitionen im modernen Neumorphismus-/Glassmorphism-Look
+├── index.html          # Einstiegspunkt der Anwendung
+└── src/
+    ├── main.js         # Initialisierung, Wiring von Views und Controllern
+    ├── controllers/    # Event-, Navigations- und Kalenderlogik
+    ├── state/          # Lokaler Storage und globaler Zustand
+    ├── utils/          # Formatierungs- und Zeit-Helferfunktionen
+    ├── views/          # Renderer für Dashboard, Sessions, Kalender & Spots
+    └── styles/         # Aufgeteilte Stylesheets (base/components/views/responsive)
 ```
 
 ## Entwicklung & Nutzung
