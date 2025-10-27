@@ -9,10 +9,12 @@ const switchView = (target) => {
     dashboard: 'Community Dashboard',
     'my-sessions': 'Meine Sessions',
     'my-appointments': 'Meine Termine',
-    create: 'Neuen Termin erstellen',
     discover: 'Padel-Spots entdecken',
   };
-  document.getElementById('view-title').textContent = titles[target];
+  const titleElement = document.getElementById('view-title');
+  if (titleElement) {
+    titleElement.textContent = titles[target] || 'Meine Termine';
+  }
 };
 
 const setupNavigation = () => {

@@ -44,9 +44,10 @@ const createEventControllers = ({ refreshUI, navigate }) => {
     if (!form) {
       return;
     }
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
     const titleField = form.querySelector('input[name="title"]');
     if (titleField) {
-      titleField.focus();
+      requestAnimationFrame(() => titleField.focus());
     }
   };
 
@@ -142,6 +143,13 @@ const createEventControllers = ({ refreshUI, navigate }) => {
       window.alert(
         'Die Zusagefrist muss mindestens eine Stunde vor dem Start der Session liegen.',
       );
+      return null;
+    }
+
+    const rawTotalCostValue = raw.totalCost ?? '';
+    const hasTotalCostInput = String(rawTotalCostValue).trim() !== '';
+    if (!hasTotalCostInput) {
+      window.alert('Bitte gib die Gesamtkosten der Session an.');
       return null;
     }
 
@@ -346,7 +354,7 @@ const createEventControllers = ({ refreshUI, navigate }) => {
     prependEvent(eventToStore);
     resetFormState();
     refreshUI();
-    navigate('dashboard');
+    navigate('my-appointments');
     focusTitleField();
   };
 
@@ -392,7 +400,7 @@ const createEventControllers = ({ refreshUI, navigate }) => {
     editingEventId = id;
     populateForm(event);
     setFormMode('edit');
-    navigate('create');
+    navigate('my-appointments');
     focusTitleField();
   };
 
