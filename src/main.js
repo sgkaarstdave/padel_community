@@ -92,7 +92,7 @@ let formListenerAttached = false;
 const bootstrapApplication = () => {
   if (!hasBootstrapped) {
     setupNavigation();
-    switchView('my-appointments');
+    switchView('dashboard');
     setupCalendarControls(renderCalendar);
     bindFilters(() => {
       renderEventsList();
