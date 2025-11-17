@@ -15,7 +15,14 @@ const renderPlaces = () => {
       <div class="place-card__tags">
         ${place.tags.map((tag) => `<span>${tag}</span>`).join('')}
       </div>
-      <a class="primary" href="${place.url}" target="_blank" rel="noopener">Zur Website</a>
+      <div class="place-card__actions">
+        <a class="primary" href="${place.url}" target="_blank" rel="noopener">Zur Website</a>
+        ${
+          place.bookingUrl
+            ? `<a class="button button--ghost" href="${place.bookingUrl}" target="_blank" rel="noopener">Direkt buchen</a>`
+            : ''
+        }
+      </div>
     `;
     list.appendChild(card);
   });

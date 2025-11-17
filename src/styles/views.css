@@ -155,6 +155,18 @@
   font-size: 0.8rem;
 }
 
+.place-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.place-card__actions a {
+  flex: 1;
+  min-width: 140px;
+  text-align: center;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
