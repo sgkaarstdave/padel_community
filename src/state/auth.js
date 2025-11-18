@@ -140,11 +140,19 @@ const registerEmailUser = async ({ email, password, displayName }) => {
   });
 
   if (error) {
-    throw new Error(error.message || 'Registrierung fehlgeschlagen.');
+    const message =
+      error.code === 'user_already_exists'
+        ? 'Für diese E-Mail-Adresse existiert bereits ein Konto. Bitte melde dich stattdessen an.'
+        : error.message || 'Registrierung fehlgeschlagen.';
+    throw new Error(message);
   }
 
-  if (!data?.session && data?.user) {
-    applySupabaseSession(null, data.user);
+  if (!data?.session) {
+    // Supabase verlangt eine E-Mail-Bestätigung und liefert daher keine aktive Session zurück.
+    // Wir behalten den abgemeldeten Zustand bei, damit die Nutzer:innen sich erst nach
+    // erfolgreicher Bestätigung anmelden können und nicht versehentlich ohne gültigen Token
+    // als eingeloggt gelten.
+    applySession(null);
     return currentSession;
   }
 
