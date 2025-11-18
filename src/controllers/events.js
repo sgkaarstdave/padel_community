@@ -150,10 +150,15 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       window.alert('Die Zusagefrist muss in der Zukunft liegen.');
       return null;
     }
-    const minimumLeadTimeMs = 60 * 60 * 1000;
-    if (deadlineDate.getTime() > range.start.getTime() - minimumLeadTimeMs) {
+    const maximumLeadTimeMs = 5 * 60 * 1000;
+    const startTimeMs = range.start.getTime();
+    if (deadlineDate.getTime() >= startTimeMs) {
+      window.alert('Die Zusagefrist muss vor dem Start der Session liegen.');
+      return null;
+    }
+    if (deadlineDate.getTime() < startTimeMs - maximumLeadTimeMs) {
       window.alert(
-        'Die Zusagefrist muss mindestens eine Stunde vor dem Start der Session liegen.',
+        'Die Zusagefrist darf höchstens fünf Minuten vor dem Start der Session liegen.',
       );
       return null;
     }
