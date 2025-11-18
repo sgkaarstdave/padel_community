@@ -64,11 +64,35 @@ const computeDurationFromRange = (startTime, endTime) => {
   return Math.max(0.5, Math.round((diff / 3600000) * 10) / 10);
 };
 
+const hasTimezoneInfo = (value) => /([zZ]|[+-]\d{2}:?\d{2})$/.test(value);
+
+const normalizeTimestampInput = (value) => {
+  if (!value) {
+    return '';
+  }
+  const trimmed = String(value).trim();
+  if (!trimmed) {
+    return '';
+  }
+  const withSeparator = trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T');
+  if (hasTimezoneInfo(withSeparator)) {
+    return withSeparator;
+  }
+  return `${withSeparator}Z`;
+};
+
 const normalizeTimestamp = (value) => {
   if (!value) {
     return null;
   }
-  const date = value instanceof Date ? value : new Date(value);
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  const normalizedInput = normalizeTimestampInput(value);
+  if (!normalizedInput) {
+    return null;
+  }
+  const date = new Date(normalizedInput);
   if (Number.isNaN(date.getTime())) {
     return null;
   }
@@ -158,7 +182,8 @@ const decodeMetadata = (row) => {
   const participants = sanitizeParticipants(metadata.participants);
   const durationFromMetadata = Number(metadata.durationHours ?? metadata.duration) || 2;
   const paypalLink = metadata.paypalLink || metadata.paymentLink || '';
-  const rsvpDeadline = metadata.rsvpDeadline || metadata.deadline || '';
+  const rsvpDeadline =
+    normalizeTimestamp(metadata.rsvpDeadline || metadata.deadline || '') || '';
   return {
     totalCost: Number(metadata.totalCost) || 0,
     notes: metadata.notes || '',
@@ -206,7 +231,8 @@ const mapRowToEvent = (row, session) => {
       ? row.paypal_link
       : metadata.paypalLink || metadata.paymentLink || '';
   const rsvpDeadline =
-    row.rsvp_deadline || metadata.rsvpDeadline || metadata.deadline || '';
+    normalizeTimestamp(row.rsvp_deadline || metadata.rsvpDeadline || metadata.deadline || '') ||
+    '';
   return {
     id: row.id,
     title: row.title || 'Padel Session',
@@ -238,7 +264,7 @@ const mapRowToEvent = (row, session) => {
 const buildMetadataPayload = (event) => {
   const durationHours = Number(event.durationHours ?? event.duration) || 2;
   const paypalLink = event.paypalLink || event.paymentLink || '';
-  const rsvpDeadline = event.rsvpDeadline || event.deadline || '';
+  const rsvpDeadline = normalizeTimestamp(event.rsvpDeadline || event.deadline || '') || '';
   return {
     version: METADATA_VERSION,
     totalCost: Number(event.totalCost) || 0,
