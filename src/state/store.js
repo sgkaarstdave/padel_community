@@ -1,8 +1,7 @@
-import { loadEvents, saveEvents } from './storage.js';
 import { isActiveOrRecent } from '../utils/time.js';
 
 const state = {
-  events: loadEvents(),
+  events: [],
   currentWeekOffset: 0,
   recentJoins: 0,
 };
@@ -21,40 +20,28 @@ const updateEventById = (id, updater) => {
     return nextEvent;
   });
 
-  if (hasChanged) {
-    saveEvents(state.events);
-  }
-
   return hasChanged;
 };
 
 const prependEvent = (event) => {
   state.events = [event, ...state.events];
-  saveEvents(state.events);
 };
 
 const removeEventById = (id) => {
   const initialLength = state.events.length;
   state.events = state.events.filter((event) => event.id !== id);
-  if (state.events.length !== initialLength) {
-    saveEvents(state.events);
-    return true;
-  }
-  return false;
+  return state.events.length !== initialLength;
 };
 
 const setEvents = (events) => {
-  state.events = events;
-  saveEvents(state.events);
+  state.events = Array.isArray(events) ? [...events] : [];
+  return state.events;
 };
 
 const pruneExpiredEvents = () => {
   const now = new Date();
   const initialLength = state.events.length;
   state.events = state.events.filter((event) => isActiveOrRecent(event, now));
-  if (state.events.length !== initialLength) {
-    saveEvents(state.events);
-  }
   return state.events.length;
 };
 

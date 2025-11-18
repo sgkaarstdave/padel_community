@@ -15,7 +15,8 @@ import {
 import { renderCalendar } from './views/calendar.js';
 import { renderPlaces } from './views/places.js';
 import { places } from './state/storage.js';
-import { pruneExpiredEvents } from './state/store.js';
+import { pruneExpiredEvents, setEvents } from './state/store.js';
+import { fetchAllEvents } from './state/eventRepository.js';
 
 const setupLocationSelector = () => {
   const select = document.getElementById('locationSelect');
@@ -86,10 +87,36 @@ const refreshUI = () => {
   updateStats();
 };
 
+const setDataError = (message) => {
+  const banner = document.getElementById('dataError');
+  if (!banner) {
+    return;
+  }
+  if (message) {
+    banner.textContent = message;
+    banner.hidden = false;
+  } else {
+    banner.textContent = '';
+    banner.hidden = true;
+  }
+};
+
 let hasBootstrapped = false;
 let formListenerAttached = false;
 
-const bootstrapApplication = () => {
+const loadEventsFromBackend = async () => {
+  try {
+    setDataError('');
+    const events = await fetchAllEvents();
+    setEvents(events);
+    refreshUI();
+  } catch (error) {
+    console.error('Konnte Events nicht laden', error);
+    setDataError('Events konnten nicht geladen werden. Bitte versuche es später erneut.');
+  }
+};
+
+const bootstrapApplication = async () => {
   if (!hasBootstrapped) {
     setupNavigation();
     switchView('dashboard');
@@ -106,6 +133,7 @@ const bootstrapApplication = () => {
       createEventControllers({
         refreshUI,
         navigate: switchView,
+        reportError: setDataError,
       });
 
     registerToggleHandler(toggleParticipation);
@@ -121,12 +149,16 @@ const bootstrapApplication = () => {
   }
 
   refreshUI();
+  await loadEventsFromBackend();
 };
 
 document.addEventListener('DOMContentLoaded', () => {
   initializeAuth({
     onAuthenticated: () => {
-      bootstrapApplication();
+      bootstrapApplication().catch((error) => {
+        console.error('Fehler beim Starten der Anwendung', error);
+        setDataError('Die Anwendung konnte nicht vollständig geladen werden.');
+      });
     },
   });
 });
