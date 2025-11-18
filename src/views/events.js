@@ -13,6 +13,19 @@ let toggleParticipationHandler = () => {};
 let ownerEditHandler = () => {};
 let ownerDeleteHandler = () => {};
 
+const escapeHtml = (value = '') =>
+  String(value).replace(/[&<>"']/g, (char) =>
+    (
+      {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      }[char] || char
+    ),
+  );
+
 const registerToggleHandler = (handler) => {
   toggleParticipationHandler = handler;
 };
@@ -122,6 +135,35 @@ const formatRelativeTime = (timestamp) => {
   return date.toLocaleDateString('de-DE');
 };
 
+const renderParticipantsList = (event) => {
+  const participants = Array.isArray(event.participants) ? event.participants : [];
+  const baseLabel = '<span class="participants-list__label">Teilnehmende:</span>';
+  if (!participants.length) {
+    return `
+      <div class="participants-list participants-list--empty">
+        ${baseLabel}
+        <div class="participants-list__chips">
+          <span class="participant-chip participant-chip--empty">Noch keine Zusagen sichtbar</span>
+        </div>
+      </div>
+    `;
+  }
+  const chips = participants
+    .map((participant) => {
+      const name = escapeHtml(participant.displayName || participant.email || 'Teilnehmende Person');
+      const relative = participant.joinedAt ? formatRelativeTime(participant.joinedAt) : '';
+      const tooltip = relative ? `Zusage ${relative}` : 'Teilnehmende Person';
+      return `<span class="participant-chip" title="${escapeHtml(tooltip)}">${name}</span>`;
+    })
+    .join('');
+  return `
+    <div class="participants-list">
+      ${baseLabel}
+      <div class="participants-list__chips">${chips}</div>
+    </div>
+  `;
+};
+
 const createEventCard = (event) => {
   const {
     isFull,
@@ -174,6 +216,7 @@ const createEventCard = (event) => {
               : ''
           }
         </div>
+        ${renderParticipantsList(event)}
         ${event.notes ? `<p class="muted">${event.notes}</p>` : ''}
         ${
           event.paypalLink || event.paymentLink
