@@ -1,4 +1,5 @@
 const MOBILE_BREAKPOINT = 1024;
+const MOBILE_OVERLAY_BREAKPOINT = 768;
 
 const isMobileNavigationViewport = () => {
   if (typeof window === 'undefined') {
@@ -10,7 +11,17 @@ const isMobileNavigationViewport = () => {
   return window.innerWidth <= MOBILE_BREAKPOINT;
 };
 
-const setupMobileNavigationToggle = () => {
+const isSmallMobileViewport = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  if (typeof window.matchMedia === 'function') {
+    return window.matchMedia(`(max-width: ${MOBILE_OVERLAY_BREAKPOINT}px)`).matches;
+  }
+  return window.innerWidth <= MOBILE_OVERLAY_BREAKPOINT;
+};
+
+const setupSidebarNavigationToggle = () => {
   const sidebar = document.querySelector('.sidebar');
   const nav = document.getElementById('sidebarNav');
   const toggleButtons = Array.from(
@@ -25,7 +36,8 @@ const setupMobileNavigationToggle = () => {
   }
 
   const setMenuState = (isOpen) => {
-    const shouldHideNav = isMobileNavigationViewport();
+    const shouldHideNav =
+      isMobileNavigationViewport() && !isSmallMobileViewport();
     const isMobileMenuOpen = isOpen && shouldHideNav;
 
     sidebar.classList.toggle('is-open', isMobileMenuOpen);
@@ -49,7 +61,7 @@ const setupMobileNavigationToggle = () => {
   };
 
   const openMenu = () => {
-    if (isMobileNavigationViewport()) {
+    if (isMobileNavigationViewport() && !isSmallMobileViewport()) {
       setMenuState(true);
     }
   };
@@ -91,7 +103,78 @@ const setupMobileNavigationToggle = () => {
 
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', () => {
-      if (!isMobileNavigationViewport()) {
+      if (!isMobileNavigationViewport() || isSmallMobileViewport()) {
+        setMenuState(false);
+      }
+    });
+  }
+
+  setMenuState(false);
+
+  return () => {
+    closeMenu();
+  };
+};
+
+const setupFullscreenMobileNavigation = () => {
+  const navOverlay = document.getElementById('mobileNav');
+  const openButton = document.getElementById('mobileNavToggle');
+  const closeButton = document.getElementById('mobileNavClose');
+  const body = document.body;
+
+  if (!navOverlay || !openButton) {
+    return () => {};
+  }
+
+  const setMenuState = (isOpen) => {
+    const shouldOpen = isOpen && isSmallMobileViewport();
+    navOverlay.classList.toggle('is-visible', shouldOpen);
+    navOverlay.setAttribute('aria-hidden', String(!shouldOpen));
+    openButton.setAttribute('aria-expanded', String(shouldOpen));
+    if (body) {
+      body.classList.toggle('mobile-nav-open', shouldOpen);
+    }
+  };
+
+  const closeMenu = () => {
+    setMenuState(false);
+  };
+
+  const openMenu = () => {
+    if (isSmallMobileViewport()) {
+      setMenuState(true);
+    }
+  };
+
+  const toggleMenu = () => {
+    if (navOverlay.classList.contains('is-visible')) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  };
+
+  openButton.addEventListener('click', toggleMenu);
+
+  if (closeButton) {
+    closeButton.addEventListener('click', closeMenu);
+  }
+
+  navOverlay.addEventListener('click', (event) => {
+    if (event.target === navOverlay) {
+      closeMenu();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeMenu();
+    }
+  });
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', () => {
+      if (!isSmallMobileViewport()) {
         setMenuState(false);
       }
     });
@@ -140,7 +223,12 @@ const switchView = (target) => {
 };
 
 const setupNavigation = (onNavigate) => {
-  const closeMobileMenu = setupMobileNavigationToggle();
+  const closeSidebarMenu = setupSidebarNavigationToggle();
+  const closeMobileOverlay = setupFullscreenMobileNavigation();
+  const closeMobileMenus = () => {
+    closeSidebarMenu();
+    closeMobileOverlay();
+  };
   document.querySelectorAll('.nav-btn').forEach((button) => {
     button.addEventListener('click', () => {
       const target = button.dataset.target;
@@ -148,7 +236,7 @@ const setupNavigation = (onNavigate) => {
       if (typeof onNavigate === 'function') {
         onNavigate(target);
       }
-      closeMobileMenu();
+      closeMobileMenus();
     });
   });
 };
