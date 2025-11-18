@@ -213,6 +213,10 @@
     align-items: flex-start;
   }
 
+  .app-shell {
+    max-width: 720px;
+  }
+
   .sidebar {
     flex-direction: column;
     align-items: stretch;
@@ -300,6 +304,9 @@
 
   .app-shell {
     border-radius: 16px;
+    max-width: 480px;
+    width: 100%;
+    margin: 0 auto;
   }
 
   .brand {
@@ -313,6 +320,11 @@
     height: 42px;
   }
 
+  .sidebar {
+    padding: 18px 16px;
+    gap: 12px;
+  }
+
   .sidebar__nav {
     padding: 64px 18px 20px;
   }
@@ -322,21 +334,125 @@
     padding: 16px 18px;
   }
 
+  main {
+    padding: 16px 14px 20px;
+    gap: 14px;
+  }
+
+  .view {
+    gap: 14px;
+  }
+
+  .topbar {
+    padding: 6px 0 2px;
+    gap: 10px;
+  }
+
+  .topbar__intro {
+    gap: 6px;
+  }
+
   .topbar h2 {
-    font-size: clamp(1.15rem, 0.9rem + 3vw, 1.35rem);
+    font-size: clamp(1.1rem, 0.85rem + 3vw, 1.3rem);
+  }
+
+  .topbar .muted {
+    font-size: 0.85rem;
+  }
+
+  .user-menu {
+    width: 100%;
+    padding: 12px;
+    border-radius: 18px;
+    gap: 10px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    background: rgba(15, 23, 42, 0.78);
+  }
+
+  .user-menu__avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .user-menu__details {
+    font-size: 0.95rem;
+  }
+
+  .user-menu__details span:first-child {
+    font-size: 0.95rem;
+  }
+
+  .user-menu__details span:last-child {
+    font-size: 0.8rem;
+  }
+
+  .user-menu button {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
   }
 
   .stat-card,
   .panel {
+    padding: 14px;
+    border-radius: 18px;
+    gap: 12px;
+  }
+
+  .panel__header {
+    gap: 10px;
+  }
+
+  .panel__header h3 {
+    font-size: 1rem;
+  }
+
+  .panel__header .muted {
+    font-size: 0.85rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .stat-value {
+    font-size: 1.6rem;
+  }
+
+  .trend-chip {
+    padding: 8px 12px;
+    font-size: 0.95rem;
+  }
+
+  .filters {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .filters select {
+    flex: 1 1 100%;
+  }
+
+  .events-list,
+  .events-history {
+    gap: 12px;
+  }
+
+  .event-card {
     padding: 16px;
+    gap: 12px;
   }
 
   .calendar__controls {
-    gap: 8px;
+    gap: 6px;
   }
 
   .calendar__controls button {
     flex: 1 1 100px;
+    min-height: 40px;
   }
 
   .calendar__grid {
