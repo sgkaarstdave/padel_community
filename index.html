@@ -306,7 +306,9 @@
                 <span class="label-text"
                   >Startzeit <span class="required-marker" aria-hidden="true">*</span></span
                 >
-                <input type="time" name="time" required />
+                <select name="time" id="startTimeSelect" required>
+                  <option value="">Startzeit wählen</option>
+                </select>
               </label>
               <label>
                 <span class="label-text"
@@ -327,14 +329,7 @@
                   >Gesamtkosten (€)
                   <span class="required-marker" aria-hidden="true">*</span></span
                 >
-                <input
-                  type="number"
-                  name="totalCost"
-                  min="0"
-                  value="40"
-                  step="0.01"
-                  required
-                />
+                <input type="number" name="totalCost" min="0" step="0.01" required />
               </label>
               <label>
                 <span class="label-text"
@@ -365,7 +360,13 @@
                   >Zusage Deadline
                   <span class="required-marker" aria-hidden="true">*</span></span
                 >
-                <input type="datetime-local" name="rsvpDeadline" required />
+                <div class="datetime-inputs">
+                  <input type="date" name="rsvpDeadlineDate" required />
+                  <select name="rsvpDeadlineTime" id="deadlineTimeSelect" required>
+                    <option value="">Uhrzeit wählen</option>
+                  </select>
+                </div>
+                <input type="datetime-local" name="rsvpDeadline" hidden />
               </label>
               <label class="full">
                 Zusätzliche Infos

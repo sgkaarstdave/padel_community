@@ -35,6 +35,12 @@ const formatDeadlineForInput = (value) => {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
+const TIME_SLOT_OPTIONS = Array.from({ length: 48 }, (_, index) => {
+  const hours = String(Math.floor(index / 2)).padStart(2, '0');
+  const minutes = index % 2 === 0 ? '00' : '30';
+  return `${hours}:${minutes}`;
+});
+
 const CONFLICT_MESSAGE =
   'Die Session überschneidet sich mit einer anderen, der du bereits zugesagt hast.';
 
@@ -45,12 +51,100 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
   const locationSelect = form?.querySelector('select[name="location"]');
   const customLocationInput = document.getElementById('customLocationInput');
   const dateInput = form?.querySelector('input[name="date"]');
-  const timeInput = form?.querySelector('input[name="time"]');
+  const timeInput =
+    form?.querySelector('select[name="time"]') || form?.querySelector('input[name="time"]');
   const deadlineInput = form?.querySelector('input[name="rsvpDeadline"]');
+  const deadlineDateInput = form?.querySelector('input[name="rsvpDeadlineDate"]');
+  const deadlineTimeSelect =
+    form?.querySelector('select[name="rsvpDeadlineTime"]') ||
+    form?.querySelector('input[name="rsvpDeadlineTime"]');
   const notifyError = typeof reportError === 'function' ? reportError : () => {};
   const locationCityMap = new Map(places.map((place) => [place.name, place.city || '']));
 
   let editingEventId = null;
+
+  const ensureSelectOption = (selectElement, value) => {
+    if (!selectElement || !value || selectElement.tagName !== 'SELECT') {
+      return;
+    }
+    const hasOption = Array.from(selectElement.options).some(
+      (option) => option.value === value,
+    );
+    if (!hasOption) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = value;
+      option.dataset.slotOption = 'custom';
+      selectElement.appendChild(option);
+    }
+  };
+
+  const populateTimeOptions = (selectElement) => {
+    if (!selectElement || selectElement.tagName !== 'SELECT') {
+      return;
+    }
+    const hasSlotOptions = selectElement.querySelector('option[data-slot-option]');
+    if (hasSlotOptions) {
+      return;
+    }
+    TIME_SLOT_OPTIONS.forEach((slot) => {
+      const option = document.createElement('option');
+      option.value = slot;
+      option.textContent = slot;
+      option.dataset.slotOption = 'true';
+      selectElement.appendChild(option);
+    });
+  };
+
+  populateTimeOptions(timeInput);
+  populateTimeOptions(deadlineTimeSelect);
+
+  const syncDeadlineCompositeField = () => {
+    if (!deadlineInput) {
+      return;
+    }
+    const datePart = deadlineDateInput?.value || '';
+    const timePart = deadlineTimeSelect?.value || '';
+    if (datePart && timePart) {
+      deadlineInput.value = `${datePart}T${timePart}`;
+    } else {
+      deadlineInput.value = '';
+    }
+  };
+
+  const updateDeadlinePartsFromInput = () => {
+    if (!deadlineInput) {
+      return;
+    }
+    const value = deadlineInput.value || '';
+    if (!deadlineDateInput && !deadlineTimeSelect) {
+      return;
+    }
+    if (!value || !value.includes('T')) {
+      if (deadlineDateInput) {
+        deadlineDateInput.value = '';
+      }
+      if (deadlineTimeSelect) {
+        deadlineTimeSelect.value = '';
+      }
+      return;
+    }
+    const [datePart, rawTime] = value.split('T');
+    const timePart = (rawTime || '').slice(0, 5);
+    if (deadlineDateInput) {
+      deadlineDateInput.value = datePart || '';
+    }
+    if (deadlineTimeSelect) {
+      ensureSelectOption(deadlineTimeSelect, timePart);
+      deadlineTimeSelect.value = timePart || '';
+    }
+  };
+
+  const handleDeadlinePartChange = () => {
+    syncDeadlineCompositeField();
+    clampDeadlineFieldValue();
+    updateDeadlinePartsFromInput();
+  };
 
   const getStartDateFromInputs = () => {
     if (!dateInput?.value || !timeInput?.value) {
@@ -107,6 +201,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       deadlineInput.removeAttribute('max');
     }
     clampDeadlineFieldValue();
+    updateDeadlinePartsFromInput();
   };
 
   const setFormMode = (mode) => {
@@ -128,6 +223,8 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     if (form) {
       form.reset();
     }
+    syncDeadlineCompositeField();
+    updateDeadlinePartsFromInput();
     setFormMode('create');
     applyDeadlineFieldBounds();
   };
@@ -184,6 +281,14 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     timeInput.addEventListener('input', applyDeadlineFieldBounds);
     timeInput.addEventListener('change', applyDeadlineFieldBounds);
   }
+  if (deadlineDateInput) {
+    deadlineDateInput.addEventListener('input', handleDeadlinePartChange);
+    deadlineDateInput.addEventListener('change', handleDeadlinePartChange);
+  }
+  if (deadlineTimeSelect) {
+    deadlineTimeSelect.addEventListener('input', handleDeadlinePartChange);
+    deadlineTimeSelect.addEventListener('change', handleDeadlinePartChange);
+  }
   if (form) {
     form.addEventListener('reset', () => {
       requestAnimationFrame(applyDeadlineFieldBounds);
@@ -194,6 +299,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     if (!form) {
       return null;
     }
+    syncDeadlineCompositeField();
     const formData = new FormData(form);
     const raw = Object.fromEntries(formData.entries());
 
@@ -499,6 +605,9 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     }
     const field = form.querySelector(selector);
     if (field) {
+      if (field.tagName === 'SELECT' && value) {
+        ensureSelectOption(field, value);
+      }
       field.value = value ?? '';
     }
   };
@@ -509,7 +618,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     }
     setFieldValue('input[name="title"]', event.title || '');
     setFieldValue('input[name="date"]', event.date || '');
-    setFieldValue('input[name="time"]', event.time || '');
+    setFieldValue('[name="time"]', event.time || '');
     setFieldValue('input[name="durationHours"]', event.durationHours ?? event.duration ?? 2);
     setFieldValue('input[name="totalCost"]', event.totalCost ?? 0);
     setFieldValue('input[name="capacity"]', event.capacity ?? 4);
@@ -522,6 +631,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       formatDeadlineForInput(event.rsvpDeadline || event.deadline),
     );
     clampDeadlineFieldValue();
+    updateDeadlinePartsFromInput();
     applyLocationSelection(event.location);
   };
 
