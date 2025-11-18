@@ -31,7 +31,11 @@ body {
   display: flex;
   align-items: stretch;
   justify-content: center;
-  padding: 24px;
+  padding: clamp(12px, 4vw, 24px);
+}
+
+button {
+  min-height: 44px;
 }
 
 body.sidebar-open {
@@ -65,7 +69,7 @@ body.sidebar-open {
 }
 
 .brand h1 {
-  font-size: 1.25rem;
+  font-size: clamp(1.1rem, 1rem + 0.6vw, 1.45rem);
   font-weight: 700;
 }
 
@@ -92,6 +96,7 @@ body.sidebar-open {
   color: var(--text);
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.4);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-height: 44px;
 }
 
 .sidebar__toggle:focus-visible,
@@ -130,6 +135,7 @@ body.sidebar-open {
   cursor: pointer;
   transition: transform 0.35s ease, background 0.35s ease,
     box-shadow 0.35s ease;
+  min-height: 44px;
 }
 
 .nav-btn.active,
@@ -149,10 +155,12 @@ body.sidebar-open {
 }
 
 main {
-  padding: 32px;
+  padding: clamp(20px, 3vw, 32px);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: clamp(18px, 2vw, 28px);
+  width: 100%;
+  min-width: 0;
 }
 
 .topbar {
@@ -161,6 +169,7 @@ main {
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .topbar__intro {
@@ -171,7 +180,7 @@ main {
 }
 
 .topbar h2 {
-  font-size: 1.5rem;
+  font-size: clamp(1.3rem, 1.1rem + 1vw, 1.75rem);
   font-weight: 700;
 }
 
@@ -184,6 +193,7 @@ main {
   border: 1px solid rgba(148, 163, 184, 0.25);
   background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(12px);
+  flex-wrap: wrap;
 }
 
 .user-menu__avatar {
@@ -222,26 +232,29 @@ main {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: clamp(14px, 2vw, 22px);
+  width: 100%;
 }
 
 .panel {
   background: var(--surface);
   border-radius: 24px;
-  padding: 24px;
+  padding: clamp(20px, 3vw, 28px);
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: clamp(14px, 2vw, 22px);
   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.4);
   border: 1px solid rgba(148, 163, 184, 0.12);
+  width: 100%;
 }
 
 .panel__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 18px;
+  flex-wrap: wrap;
+  gap: clamp(12px, 2vw, 20px);
 }
 
 .filters select {

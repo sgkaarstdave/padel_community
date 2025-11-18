@@ -1,18 +1,21 @@
 .calendar {
-  gap: 24px;
+  gap: clamp(18px, 2.5vw, 28px);
+  width: 100%;
 }
 
 .calendar__controls {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
 }
 
 .calendar__controls button {
   background: rgba(30, 41, 59, 0.9);
   color: var(--text);
   border: none;
-  padding: 8px 12px;
+  padding: 10px 16px;
   border-radius: 10px;
   cursor: pointer;
 }
@@ -20,7 +23,8 @@
 .calendar__grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 12px;
+  gap: clamp(10px, 1.2vw, 14px);
+  width: 100%;
 }
 
 .calendar__day {
@@ -31,7 +35,7 @@
   flex-direction: column;
   gap: 12px;
   border: 1px solid rgba(148, 163, 184, 0.12);
-  min-height: 140px;
+  min-height: clamp(120px, 18vw, 160px);
   transition: transform 0.35s ease;
 }
 
@@ -50,7 +54,9 @@
 }
 
 .form {
+  width: 100%;
   max-width: 780px;
+  margin: 0 auto;
 }
 
 .form__grid {
@@ -151,8 +157,9 @@
 .view {
   display: none;
   flex-direction: column;
-  gap: 24px;
+  gap: clamp(18px, 2.2vw, 28px);
   animation: fadeIn 0.65s ease;
+  width: 100%;
 }
 
 .view.active {
@@ -162,12 +169,13 @@
 .places__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 18px;
+  gap: clamp(14px, 2vw, 20px);
+  width: 100%;
 }
 
 .place-card {
   background: rgba(15, 23, 42, 0.75);
-  padding: 20px;
+  padding: clamp(16px, 3vw, 20px);
   border-radius: 18px;
   border: 1px solid rgba(148, 163, 184, 0.12);
   display: flex;
