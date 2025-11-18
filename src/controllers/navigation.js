@@ -12,22 +12,30 @@ const isMobileNavigationViewport = () => {
 
 const setupMobileNavigationToggle = () => {
   const sidebar = document.querySelector('.sidebar');
-  const toggleButton = document.getElementById('sidebarToggle');
+  const nav = document.getElementById('sidebarNav');
+  const toggleButtons = Array.from(
+    document.querySelectorAll('[data-nav-toggle]')
+  );
+  const closeButtons = Array.from(document.querySelectorAll('[data-nav-close]'));
   const overlay = document.getElementById('sidebarOverlay');
   const body = document.body;
 
-  if (!sidebar || !toggleButton) {
+  if (!sidebar || !nav || toggleButtons.length === 0) {
     return () => {};
   }
 
   const setMenuState = (isOpen) => {
     sidebar.classList.toggle('is-open', isOpen);
-    toggleButton.setAttribute('aria-expanded', String(isOpen));
+    toggleButtons.forEach((button) => {
+      button.setAttribute('aria-expanded', String(isOpen));
+    });
     if (overlay) {
       overlay.hidden = !isOpen;
     }
+    const shouldHideNav = isMobileNavigationViewport();
+    nav.setAttribute('aria-hidden', shouldHideNav ? String(!isOpen) : 'false');
     if (body) {
-      body.classList.toggle('sidebar-open', isOpen && isMobileNavigationViewport());
+      body.classList.toggle('sidebar-open', isOpen && shouldHideNav);
     }
   };
 
@@ -49,11 +57,26 @@ const setupMobileNavigationToggle = () => {
     }
   };
 
-  toggleButton.addEventListener('click', toggleMenu);
+  toggleButtons.forEach((button) => {
+    button.addEventListener('click', toggleMenu);
+  });
 
   if (overlay) {
     overlay.addEventListener('click', closeMenu);
   }
+
+  closeButtons.forEach((button) => {
+    button.addEventListener('click', closeMenu);
+  });
+
+  nav.addEventListener('click', (event) => {
+    if (!isMobileNavigationViewport()) {
+      return;
+    }
+    if (event.target === nav) {
+      closeMenu();
+    }
+  });
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
