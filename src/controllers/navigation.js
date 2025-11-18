@@ -25,17 +25,22 @@ const setupMobileNavigationToggle = () => {
   }
 
   const setMenuState = (isOpen) => {
-    sidebar.classList.toggle('is-open', isOpen);
+    const shouldHideNav = isMobileNavigationViewport();
+    const isMobileMenuOpen = isOpen && shouldHideNav;
+
+    sidebar.classList.toggle('is-open', isMobileMenuOpen);
     toggleButtons.forEach((button) => {
-      button.setAttribute('aria-expanded', String(isOpen));
+      button.setAttribute('aria-expanded', String(isMobileMenuOpen));
     });
     if (overlay) {
-      overlay.hidden = !isOpen;
+      overlay.hidden = !isMobileMenuOpen;
+      overlay.classList.toggle('is-visible', isMobileMenuOpen);
+      overlay.setAttribute('aria-hidden', String(!isMobileMenuOpen));
     }
-    const shouldHideNav = isMobileNavigationViewport();
     nav.setAttribute('aria-hidden', shouldHideNav ? String(!isOpen) : 'false');
     if (body) {
-      body.classList.toggle('sidebar-open', isOpen && shouldHideNav);
+      body.classList.toggle('sidebar-open', isMobileMenuOpen);
+      body.style.overflow = isMobileMenuOpen ? 'hidden' : '';
     }
   };
 
