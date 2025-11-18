@@ -48,8 +48,8 @@ const getEventMeta = (event) => {
   const capacity = Math.max(normalizedAttendees, Number(event.capacity) || 0);
   const openSpots = Math.max(0, capacity - attendeeCount);
   const isFull = openSpots <= 0;
-  const isDeadlineReached =
-    !!event.deadline && new Date(event.deadline).getTime() < Date.now();
+  const rsvpDeadline = event.rsvpDeadline || event.deadline || '';
+  const isDeadlineReached = !!rsvpDeadline && new Date(rsvpDeadline).getTime() < Date.now();
   const buttonDisabled = !event.joined && (isFull || isDeadlineReached);
   const currentShare = totalCost / normalizedAttendees;
   const projectedShare = capacity > 0 ? totalCost / capacity : currentShare;
@@ -165,18 +165,20 @@ const createEventCard = (event) => {
           )} p.P.</span>
           <span>👤 ${attendees}/${capacity}</span>
           ${
-            event.deadline
+            rsvpDeadline
               ? `<span class="deadline ${
                   isDeadlineReached ? 'overdue' : ''
-                }">⏳ Zusage bis ${new Date(event.deadline).toLocaleString('de-DE')}</span>`
+                }">⏳ Zusage bis ${new Date(rsvpDeadline).toLocaleString('de-DE')}</span>`
               : ''
           }
         </div>
         ${event.notes ? `<p class="muted">${event.notes}</p>` : ''}
         ${
-          event.paymentLink
+          event.paypalLink || event.paymentLink
             ? `<div class="payment-hint">
-                <a class="payment-link" href="${event.paymentLink}" target="_blank" rel="noopener">
+                <a class="payment-link" href="${
+                  event.paypalLink || event.paymentLink
+                }" target="_blank" rel="noopener">
                   💸 PayPal-Link öffnen
                 </a>
                 <small class="muted">${

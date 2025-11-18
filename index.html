@@ -329,7 +329,14 @@
                   >Dauer (Stunden)
                   <span class="required-marker" aria-hidden="true">*</span></span
                 >
-                <input type="number" name="duration" min="1" max="6" value="2" required />
+                <input
+                  type="number"
+                  name="durationHours"
+                  min="1"
+                  max="6"
+                  value="2"
+                  required
+                />
               </label>
               <label>
                 <span class="label-text"
@@ -364,7 +371,7 @@
                 PayPal-Link (optional)
                 <input
                   type="url"
-                  name="paymentLink"
+                  name="paypalLink"
                   placeholder="https://paypal.me/deinprofil"
                   pattern="https?://.*"
                 />
@@ -374,7 +381,7 @@
                   >Zusage Deadline
                   <span class="required-marker" aria-hidden="true">*</span></span
                 >
-                <input type="datetime-local" name="deadline" required />
+                <input type="datetime-local" name="rsvpDeadline" required />
               </label>
               <label class="full">
                 Zusätzliche Infos
