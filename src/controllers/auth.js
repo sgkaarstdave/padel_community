@@ -138,7 +138,23 @@ const initializeAuth = ({ onAuthenticated, onLogout } = {}) => {
     });
   }
 
-  let lastHandledToken = null;
+  let lastHandledIdentity = null;
+
+  const getSessionIdentity = (session) => {
+    if (!session) {
+      return null;
+    }
+    if (session.token) {
+      return session.token;
+    }
+    if (session.userId) {
+      return `user:${session.userId}`;
+    }
+    if (session.email) {
+      return `email:${session.email}`;
+    }
+    return null;
+  };
 
   const applySession = (session) => {
     const isAuthenticated = Boolean(session);
@@ -170,8 +186,9 @@ const initializeAuth = ({ onAuthenticated, onLogout } = {}) => {
           userAvatar.textContent = initialsFromName(session.displayName || session.email);
         }
       }
-      if (session.token && session.token !== lastHandledToken) {
-        lastHandledToken = session.token;
+      const identity = getSessionIdentity(session);
+      if (identity && identity !== lastHandledIdentity) {
+        lastHandledIdentity = identity;
         onAuthenticated?.(session);
       }
     } else {
@@ -180,8 +197,8 @@ const initializeAuth = ({ onAuthenticated, onLogout } = {}) => {
         userAvatar.classList.remove('is-image');
         userAvatar.textContent = '👤';
       }
-      if (lastHandledToken) {
-        lastHandledToken = null;
+      if (lastHandledIdentity) {
+        lastHandledIdentity = null;
         onLogout?.();
       }
       setActiveAuthView('login');
