@@ -18,6 +18,19 @@ import {
 const DEADLINE_MINIMUM_OFFSET_MS = 60 * 1000;
 const DEADLINE_MIN_GAP_BEFORE_START_MS = 30 * 60 * 1000;
 const DEADLINE_SLOT_INTERVAL_MS = 30 * 60 * 1000;
+const DEADLINE_QUICK_OFFSETS = [
+  { label: '30 Min. vorher', ms: 30 * 60 * 1000 },
+  { label: '1 Std. vorher', ms: 60 * 60 * 1000 },
+  { label: '2 Std. vorher', ms: 2 * 60 * 60 * 1000 },
+  { label: '4 Std. vorher', ms: 4 * 60 * 60 * 1000 },
+  { label: '6 Std. vorher', ms: 6 * 60 * 60 * 1000 },
+  { label: '12 Std. vorher', ms: 12 * 60 * 60 * 1000 },
+  { label: '1 Tag vorher', ms: 24 * 60 * 60 * 1000 },
+  { label: '2 Tage vorher', ms: 2 * 24 * 60 * 60 * 1000 },
+  { label: '3 Tage vorher', ms: 3 * 24 * 60 * 60 * 1000 },
+  { label: '1 Woche vorher', ms: 7 * 24 * 60 * 60 * 1000 },
+];
+const CUSTOM_DEADLINE_VALUE = '__custom__';
 
 const formatDeadlineForInput = (value) => {
   if (!value) {
@@ -56,6 +69,9 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     form?.querySelector('select[name="time"]') || form?.querySelector('input[name="time"]');
   const deadlineInput = form?.querySelector('input[name="rsvpDeadline"]');
   const deadlineSelect = form?.querySelector('select[name="rsvpDeadlineOption"]');
+  const customDeadlineSection = form?.querySelector('[data-deadline-custom]');
+  const customDeadlineInput = customDeadlineSection?.querySelector('[data-deadline-custom-input]');
+  const customDeadlineHelper = customDeadlineSection?.querySelector('[data-deadline-helper]');
   const deadlinePlaceholderText =
     deadlineSelect?.querySelector('option[value=""]')?.textContent?.trim() ||
     'Zusage-Deadline wählen';
@@ -110,10 +126,35 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     return start;
   };
 
-  const setHiddenDeadlineValue = (value) => {
+  const setHiddenDeadlineValue = (value, options = {}) => {
+    const { skipCustomSync = false } = options;
     if (deadlineInput) {
       deadlineInput.value = value || '';
     }
+    if (!skipCustomSync && customDeadlineInput && customDeadlineSection && !customDeadlineSection.hidden) {
+      customDeadlineInput.value = value ? formatDeadlineForInput(value) : '';
+    }
+  };
+
+  const showCustomDeadlineInput = (prefillValue) => {
+    if (!customDeadlineSection) {
+      return;
+    }
+    customDeadlineSection.hidden = false;
+    if (customDeadlineInput) {
+      const nextValue = prefillValue || deadlineInput?.value || '';
+      customDeadlineInput.value = nextValue ? formatDeadlineForInput(nextValue) : '';
+      requestAnimationFrame(() => {
+        customDeadlineInput.focus();
+      });
+    }
+  };
+
+  const hideCustomDeadlineInput = () => {
+    if (!customDeadlineSection) {
+      return;
+    }
+    customDeadlineSection.hidden = true;
   };
 
   const formatDeadlineOptionLabel = (value) => {
@@ -142,21 +183,29 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     return new Date(timestamp + (DEADLINE_SLOT_INTERVAL_MS - remainder));
   };
 
-  const buildDeadlineSlotDates = () => {
+  const getDeadlineWindow = () => {
     const startDate = getStartDateFromInputs();
     if (!startDate) {
-      return [];
+      return null;
     }
     const latestAllowed = new Date(startDate.getTime() - DEADLINE_MIN_GAP_BEFORE_START_MS);
     const nowWithOffset = new Date(Date.now() + DEADLINE_MINIMUM_OFFSET_MS);
     if (latestAllowed.getTime() < nowWithOffset.getTime()) {
-      return [];
+      return null;
     }
     const earliestSlot = roundDateToSlot(nowWithOffset, 'ceil');
     const latestSlot = roundDateToSlot(latestAllowed, 'floor');
     if (latestSlot.getTime() < earliestSlot.getTime()) {
+      return null;
+    }
+    return { startDate, earliestSlot, latestSlot };
+  };
+
+  const buildDeadlineSlotDates = (windowInfo = getDeadlineWindow()) => {
+    if (!windowInfo) {
       return [];
     }
+    const { earliestSlot, latestSlot } = windowInfo;
     const slots = [];
     for (
       let slotTime = earliestSlot.getTime();
@@ -168,44 +217,102 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     return slots;
   };
 
+  const buildQuickDeadlineOptions = (windowInfo = getDeadlineWindow()) => {
+    if (!windowInfo) {
+      return [];
+    }
+    const { startDate, earliestSlot, latestSlot } = windowInfo;
+    const seenValues = new Set();
+    const options = [];
+    DEADLINE_QUICK_OFFSETS.forEach(({ label, ms }) => {
+      const target = new Date(startDate.getTime() - ms);
+      if (target.getTime() < earliestSlot.getTime() || target.getTime() > latestSlot.getTime()) {
+        return;
+      }
+      const slotDate = roundDateToSlot(target, 'floor');
+      if (slotDate.getTime() < earliestSlot.getTime() || slotDate.getTime() > latestSlot.getTime()) {
+        return;
+      }
+      const value = formatDeadlineForInput(slotDate);
+      if (seenValues.has(value)) {
+        return;
+      }
+      seenValues.add(value);
+      options.push({
+        value,
+        label: `${label} · ${formatDeadlineOptionLabel(slotDate)}`,
+      });
+    });
+    if (options.length === 0) {
+      const fallbackValue = formatDeadlineForInput(latestSlot);
+      options.push({
+        value: fallbackValue,
+        label: `Spätester möglicher Zeitpunkt · ${formatDeadlineOptionLabel(latestSlot)}`,
+      });
+    }
+    return options;
+  };
+
+  const updateCustomDeadlineHelper = (windowInfo = getDeadlineWindow()) => {
+    if (!customDeadlineHelper) {
+      return;
+    }
+    if (!windowInfo) {
+      customDeadlineHelper.textContent =
+        'Lege Datum und Startzeit fest, um passende Optionen zu sehen.';
+      return;
+    }
+    const { earliestSlot, latestSlot } = windowInfo;
+    customDeadlineHelper.textContent = `Zwischen ${formatDeadlineOptionLabel(
+      earliestSlot,
+    )} und ${formatDeadlineOptionLabel(latestSlot)} möglich.`;
+  };
+
   const updateDeadlineSelectOptions = () => {
     if (!deadlineSelect) {
       return;
     }
     const currentValue = deadlineInput?.value || '';
-    const startDate = getStartDateFromInputs();
-    const slots = startDate ? buildDeadlineSlotDates() : [];
+    const windowInfo = getDeadlineWindow();
+    const quickOptions = windowInfo ? buildQuickDeadlineOptions(windowInfo) : [];
     const fragment = document.createDocumentFragment();
     const placeholder = document.createElement('option');
     placeholder.value = '';
     placeholder.textContent = deadlinePlaceholderText;
     fragment.appendChild(placeholder);
-    slots.forEach((slotDate) => {
-      const value = formatDeadlineForInput(slotDate);
-      const option = document.createElement('option');
-      option.value = value;
-      option.textContent = formatDeadlineOptionLabel(slotDate);
-      option.dataset.slotOption = 'true';
-      fragment.appendChild(option);
-    });
+    if (quickOptions.length > 0) {
+      const quickGroup = document.createElement('optgroup');
+      quickGroup.label = 'Schnellauswahl';
+      quickOptions.forEach(({ value, label }) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        option.dataset.slotOption = 'true';
+        quickGroup.appendChild(option);
+      });
+      fragment.appendChild(quickGroup);
+    }
+    const customOption = document.createElement('option');
+    customOption.value = CUSTOM_DEADLINE_VALUE;
+    customOption.textContent = 'Individuelle Deadline wählen …';
+    fragment.appendChild(customOption);
     deadlineSelect.innerHTML = '';
     deadlineSelect.appendChild(fragment);
+    updateCustomDeadlineHelper(windowInfo);
     if (currentValue) {
-      const hasCurrent = slots.some(
-        (slotDate) => formatDeadlineForInput(slotDate) === currentValue,
-      );
-      if (!hasCurrent) {
-        ensureSelectOption(
-          deadlineSelect,
-          currentValue,
-          formatDeadlineOptionLabel(currentValue),
-        );
+      const hasQuickMatch = quickOptions.some(({ value }) => value === currentValue);
+      if (hasQuickMatch) {
+        deadlineSelect.value = currentValue;
+        hideCustomDeadlineInput();
+      } else {
+        deadlineSelect.value = CUSTOM_DEADLINE_VALUE;
+        showCustomDeadlineInput(currentValue);
       }
-      deadlineSelect.value = currentValue;
     } else {
       deadlineSelect.value = '';
+      hideCustomDeadlineInput();
     }
-    deadlineSelect.disabled = !startDate || slots.length === 0;
+    deadlineSelect.disabled = !windowInfo;
   };
 
   const syncDeadlineSelectWithInput = () => {
@@ -213,15 +320,20 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       return;
     }
     const value = deadlineInput?.value || '';
-    if (value) {
-      ensureSelectOption(
-        deadlineSelect,
-        value,
-        formatDeadlineOptionLabel(value),
-      );
-      deadlineSelect.value = value;
-    } else {
+    if (!value) {
       deadlineSelect.value = '';
+      hideCustomDeadlineInput();
+      return;
+    }
+    const hasMatchingOption = Array.from(deadlineSelect.options || []).some(
+      (option) => option.value === value,
+    );
+    if (hasMatchingOption) {
+      deadlineSelect.value = value;
+      hideCustomDeadlineInput();
+    } else {
+      deadlineSelect.value = CUSTOM_DEADLINE_VALUE;
+      showCustomDeadlineInput(value);
     }
   };
 
@@ -229,36 +341,58 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     if (!deadlineSelect) {
       return;
     }
+    if (deadlineSelect.value === CUSTOM_DEADLINE_VALUE) {
+      showCustomDeadlineInput();
+      if (customDeadlineInput?.value) {
+        setHiddenDeadlineValue(customDeadlineInput.value, { skipCustomSync: true });
+      } else {
+        setHiddenDeadlineValue('', { skipCustomSync: true });
+      }
+      return;
+    }
+    hideCustomDeadlineInput();
     setHiddenDeadlineValue(deadlineSelect.value || '');
     clampDeadlineFieldValue();
-    syncDeadlineSelectWithInput();
   };
 
   const syncDeadlineFieldValue = () => {
     if (!deadlineSelect) {
       return;
     }
+    if (deadlineSelect.value === CUSTOM_DEADLINE_VALUE) {
+      setHiddenDeadlineValue(customDeadlineInput?.value || '', { skipCustomSync: true });
+      return;
+    }
     setHiddenDeadlineValue(deadlineSelect.value || '');
   };
 
   const clampDeadlineFieldValue = () => {
-    if (!deadlineInput || !deadlineInput.value) {
+    if (!deadlineInput) {
+      return;
+    }
+    if (!deadlineInput.value) {
+      setHiddenDeadlineValue('');
       return;
     }
     const currentValue = new Date(deadlineInput.value);
     if (Number.isNaN(currentValue.getTime())) {
       deadlineInput.value = '';
+      setHiddenDeadlineValue('');
       return;
     }
     const minValue = deadlineInput.min ? new Date(deadlineInput.min) : null;
     const maxValue = deadlineInput.max ? new Date(deadlineInput.max) : null;
     if (minValue && currentValue.getTime() < minValue.getTime()) {
       deadlineInput.value = deadlineInput.min;
+      setHiddenDeadlineValue(deadlineInput.value);
       return;
     }
     if (maxValue && currentValue.getTime() > maxValue.getTime()) {
       deadlineInput.value = deadlineInput.max;
+      setHiddenDeadlineValue(deadlineInput.value);
+      return;
     }
+    setHiddenDeadlineValue(deadlineInput.value);
   };
 
   const applyDeadlineFieldBounds = () => {
@@ -277,10 +411,20 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       maxDate = latestAllowed;
     }
     deadlineInput.min = formatDeadlineForInput(minDate);
+    let maxString = '';
     if (maxDate) {
-      deadlineInput.max = formatDeadlineForInput(maxDate);
+      maxString = formatDeadlineForInput(maxDate);
+      deadlineInput.max = maxString;
     } else {
       deadlineInput.removeAttribute('max');
+    }
+    if (customDeadlineInput) {
+      customDeadlineInput.min = deadlineInput.min;
+      if (maxString) {
+        customDeadlineInput.max = maxString;
+      } else {
+        customDeadlineInput.removeAttribute('max');
+      }
     }
     clampDeadlineFieldValue();
     updateDeadlineSelectOptions();
@@ -366,6 +510,18 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
   if (deadlineSelect) {
     deadlineSelect.addEventListener('input', handleDeadlineSelectChange);
     deadlineSelect.addEventListener('change', handleDeadlineSelectChange);
+  }
+  if (customDeadlineInput) {
+    const handleCustomDeadlineInputChange = () => {
+      if (!deadlineSelect) {
+        return;
+      }
+      deadlineSelect.value = CUSTOM_DEADLINE_VALUE;
+      setHiddenDeadlineValue(customDeadlineInput.value || '', { skipCustomSync: true });
+      clampDeadlineFieldValue();
+    };
+    customDeadlineInput.addEventListener('input', handleCustomDeadlineInputChange);
+    customDeadlineInput.addEventListener('change', handleCustomDeadlineInputChange);
   }
   if (form) {
     form.addEventListener('reset', () => {
