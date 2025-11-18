@@ -145,6 +145,7 @@
           type="button"
           class="sidebar__toggle"
           id="sidebarToggle"
+          data-nav-toggle
           aria-controls="sidebarNav"
           aria-expanded="false"
           aria-label="Navigation umschalten"
@@ -153,13 +154,28 @@
           <span class="sidebar__toggle-line" aria-hidden="true"></span>
           <span class="sidebar__toggle-line" aria-hidden="true"></span>
         </button>
-        <nav class="sidebar__nav" id="sidebarNav">
-          <button class="nav-btn" data-target="dashboard">Community Dashboard</button>
-          <button class="nav-btn" data-target="my-sessions">Meine Sessions</button>
-          <button class="nav-btn active" data-target="my-appointments">
-            Meine Termine
-          </button>
-          <button class="nav-btn" data-target="discover">Padel-Spots entdecken</button>
+        <nav class="sidebar__nav" id="sidebarNav" aria-hidden="false">
+          <div class="sidebar__nav-content">
+            <div class="sidebar__nav-header">
+              <p class="sidebar__nav-title">Navigation</p>
+              <button
+                type="button"
+                class="sidebar__nav-close"
+                data-nav-close
+                aria-label="Navigation schließen"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <div class="sidebar__nav-list">
+              <button class="nav-btn" data-target="dashboard">Community Dashboard</button>
+              <button class="nav-btn" data-target="my-sessions">Meine Sessions</button>
+              <button class="nav-btn active" data-target="my-appointments">
+                Meine Termine
+              </button>
+              <button class="nav-btn" data-target="discover">Padel-Spots entdecken</button>
+            </div>
+          </div>
         </nav>
         <div class="sidebar__overlay" id="sidebarOverlay" hidden aria-hidden="true"></div>
         <div class="sidebar__footer">
@@ -169,6 +185,18 @@
           </p>
         </div>
       </aside>
+      <button
+        type="button"
+        class="sidebar__fab"
+        id="sidebarFabToggle"
+        data-nav-toggle
+        aria-controls="sidebarNav"
+        aria-expanded="false"
+        aria-label="Navigation öffnen"
+      >
+        <span class="sr-only">Navigation öffnen</span>
+        <span aria-hidden="true"></span>
+      </button>
       <main>
         <header class="topbar">
           <div class="topbar__intro">
