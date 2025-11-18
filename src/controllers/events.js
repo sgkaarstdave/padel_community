@@ -121,10 +121,10 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
 
     const date = raw.date;
     const time = raw.time;
-    const rawDuration = Number(raw.duration);
+    const rawDuration = Number(raw.durationHours ?? raw.duration);
     const durationValue = Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : 2;
-    const duration = Math.max(1, Math.round(durationValue));
-    const range = getEventTimeRange({ date, time, duration });
+    const durationHours = Math.max(1, Math.round(durationValue));
+    const range = getEventTimeRange({ date, time, durationHours });
     if (!range) {
       window.alert('Bitte gib ein gültiges Datum und eine gültige Startzeit an.');
       return null;
@@ -136,7 +136,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       return null;
     }
 
-    const deadlineValue = raw.deadline?.trim();
+    const deadlineValue = raw.rsvpDeadline?.trim() ?? raw.deadline?.trim();
     if (!deadlineValue) {
       window.alert('Bitte gib eine Zusagefrist an.');
       return null;
@@ -174,18 +174,24 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     const capacityValue = Math.max(2, Number(raw.capacity) || 0);
     const cityValue = locationCityMap.get(locationValue) || '';
 
+    const paypalLink = raw.paypalLink?.trim() ?? raw.paymentLink?.trim() ?? '';
+    const notes = raw.notes?.trim() ?? '';
+
     return {
       title,
       location: locationValue,
       city: cityValue,
       date,
       time,
-      duration,
+      durationHours,
+      duration: durationHours,
       totalCost: normalizedTotalCost || 0,
       capacity: capacityValue,
       skill: raw.skill || 'Intermediate',
-      notes: raw.notes?.trim() ?? '',
-      paymentLink: raw.paymentLink?.trim() || '',
+      notes,
+      paypalLink,
+      paymentLink: paypalLink,
+      rsvpDeadline: normalizedDeadline,
       deadline: normalizedDeadline,
     };
   };
@@ -218,7 +224,8 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       return false;
     }
     const deadlinePassed =
-      !!targetEvent.deadline && new Date(targetEvent.deadline).getTime() < now.getTime();
+      !!targetEvent.rsvpDeadline &&
+      new Date(targetEvent.rsvpDeadline).getTime() < now.getTime();
     const capacity = Math.max(0, Number(targetEvent.capacity) || 0);
     const attendees = Math.max(0, Number(targetEvent.attendees) || 0);
     if (deadlinePassed || (capacity > 0 && attendees >= capacity)) {
@@ -420,13 +427,16 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     setFieldValue('input[name="title"]', event.title || '');
     setFieldValue('input[name="date"]', event.date || '');
     setFieldValue('input[name="time"]', event.time || '');
-    setFieldValue('input[name="duration"]', event.duration ?? 2);
+    setFieldValue('input[name="durationHours"]', event.durationHours ?? event.duration ?? 2);
     setFieldValue('input[name="totalCost"]', event.totalCost ?? 0);
     setFieldValue('input[name="capacity"]', event.capacity ?? 4);
     setFieldValue('select[name="skill"]', event.skill || 'Intermediate');
     setFieldValue('textarea[name="notes"]', event.notes || '');
-    setFieldValue('input[name="paymentLink"]', event.paymentLink || '');
-    setFieldValue('input[name="deadline"]', formatDeadlineForInput(event.deadline));
+    setFieldValue('input[name="paypalLink"]', event.paypalLink || event.paymentLink || '');
+    setFieldValue(
+      'input[name="rsvpDeadline"]',
+      formatDeadlineForInput(event.rsvpDeadline || event.deadline),
+    );
     applyLocationSelection(event.location);
   };
 

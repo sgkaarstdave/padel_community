@@ -156,12 +156,18 @@ const deriveOwnerName = (row, metadata, session) => {
 const decodeMetadata = (row) => {
   const metadata = safeParseMetadata(row.description);
   const participants = sanitizeParticipants(metadata.participants);
+  const durationFromMetadata = Number(metadata.durationHours ?? metadata.duration) || 2;
+  const paypalLink = metadata.paypalLink || metadata.paymentLink || '';
+  const rsvpDeadline = metadata.rsvpDeadline || metadata.deadline || '';
   return {
     totalCost: Number(metadata.totalCost) || 0,
     notes: metadata.notes || '',
-    paymentLink: metadata.paymentLink || '',
-    deadline: metadata.deadline || '',
-    duration: Number(metadata.duration) || 2,
+    paypalLink,
+    paymentLink: paypalLink,
+    rsvpDeadline,
+    deadline: rsvpDeadline,
+    durationHours: durationFromMetadata,
+    duration: durationFromMetadata,
     history: sanitizeHistory(metadata.history),
     participants,
     ownerName: metadata.ownerName || '',
@@ -184,10 +190,10 @@ const mapRowToEvent = (row, session) => {
   const startTime = normalizeTimeValue(row.start_time) || null;
   const endTime = normalizeTimeValue(row.end_time) || null;
   const durationFromColumn = Number(row.duration_hours);
-  const duration =
+  const durationHours =
     Number.isFinite(durationFromColumn) && durationFromColumn > 0
       ? durationFromColumn
-      : metadata.duration || computeDurationFromRange(startTime, endTime);
+      : metadata.durationHours || metadata.duration || computeDurationFromRange(startTime, endTime);
   const totalCostFromColumn = Number(row.total_cost);
   const totalCost =
     Number.isFinite(totalCostFromColumn) && totalCostFromColumn >= 0
@@ -195,9 +201,12 @@ const mapRowToEvent = (row, session) => {
       : metadata.totalCost;
   const notes =
     typeof row.notes === 'string' ? row.notes : metadata.notes || '';
-  const paymentLink =
-    typeof row.paypal_link === 'string' ? row.paypal_link : metadata.paymentLink || '';
-  const deadline = row.rsvp_deadline || metadata.deadline || '';
+  const paypalLink =
+    typeof row.paypal_link === 'string'
+      ? row.paypal_link
+      : metadata.paypalLink || metadata.paymentLink || '';
+  const rsvpDeadline =
+    row.rsvp_deadline || metadata.rsvpDeadline || metadata.deadline || '';
   return {
     id: row.id,
     title: row.title || 'Padel Session',
@@ -205,14 +214,14 @@ const mapRowToEvent = (row, session) => {
     city: row.city || metadata.city || '',
     date: row.date || '',
     time: startTime ? startTime.slice(0, 5) : '',
-    duration,
+    durationHours,
     totalCost,
     capacity,
     attendees,
     skill: row.skill_level || 'Intermediate',
     notes,
-    paymentLink,
-    deadline,
+    paypalLink,
+    rsvpDeadline,
     owner: deriveOwnerName(row, metadata, session),
     createdAt: metadata.createdAt,
     joined,
@@ -220,26 +229,37 @@ const mapRowToEvent = (row, session) => {
     createdByEmail,
     history: metadata.history,
     participants,
+    duration: durationHours,
+    paymentLink: paypalLink,
+    deadline: rsvpDeadline,
   };
 };
 
-const buildMetadataPayload = (event) => ({
-  version: METADATA_VERSION,
-  totalCost: Number(event.totalCost) || 0,
-  notes: event.notes || '',
-  paymentLink: event.paymentLink || '',
-  deadline: event.deadline || '',
-  duration: Number(event.duration) || 2,
-  history: sanitizeHistory(event.history),
-  participants: sanitizeParticipants(event.participants || []),
-  ownerName: event.owner || '',
-  createdAt: event.createdAt || new Date().toISOString(),
-  city: event.city || '',
-});
+const buildMetadataPayload = (event) => {
+  const durationHours = Number(event.durationHours ?? event.duration) || 2;
+  const paypalLink = event.paypalLink || event.paymentLink || '';
+  const rsvpDeadline = event.rsvpDeadline || event.deadline || '';
+  return {
+    version: METADATA_VERSION,
+    totalCost: Number(event.totalCost) || 0,
+    notes: event.notes || '',
+    paypalLink,
+    paymentLink: paypalLink,
+    rsvpDeadline,
+    deadline: rsvpDeadline,
+    durationHours,
+    duration: durationHours,
+    history: sanitizeHistory(event.history),
+    participants: sanitizeParticipants(event.participants || []),
+    ownerName: event.owner || '',
+    createdAt: event.createdAt || new Date().toISOString(),
+    city: event.city || '',
+  };
+};
 
 const buildRowPayload = (event) => {
   const startTime = normalizeTimeValue(event.time) || '00:00:00';
-  const normalizedDurationHours = normalizeDurationHours(event.duration);
+  const normalizedDurationHours = normalizeDurationHours(event.durationHours ?? event.duration);
   const capacity = Math.max(
     Number(event.capacity) || 0,
     Number(event.attendees) || 0,
@@ -261,9 +281,12 @@ const buildRowPayload = (event) => {
     slots_taken: attendees,
     total_cost: normalizeCurrency(event.totalCost),
     notes: typeof event.notes === 'string' ? event.notes : '',
-    paypal_link: typeof event.paymentLink === 'string' ? event.paymentLink : '',
+    paypal_link:
+      typeof (event.paypalLink ?? event.paymentLink) === 'string'
+        ? event.paypalLink ?? event.paymentLink
+        : '',
     duration_hours: normalizedDurationHours,
-    rsvp_deadline: normalizeTimestamp(event.deadline),
+    rsvp_deadline: normalizeTimestamp(event.rsvpDeadline ?? event.deadline),
     description: JSON.stringify(buildMetadataPayload({ ...event, capacity, attendees })),
   };
   if (event.id) {

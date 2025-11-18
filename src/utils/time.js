@@ -6,7 +6,8 @@ const formatTimeRange = (event) => {
   const [hour, minute] = event.time.split(':').map(Number);
   const start = new Date(`${event.date}T${event.time}`);
   const end = new Date(start);
-  const durationMinutes = Math.round((event.duration || 2) * 60);
+  const baseDuration = Number(event.durationHours ?? event.duration) || 2;
+  const durationMinutes = Math.round(baseDuration * 60);
   end.setMinutes(start.getMinutes() + durationMinutes);
   return `${padNumber(hour)}:${padNumber(minute)} – ${padNumber(
     end.getHours()
@@ -21,7 +22,7 @@ const getEventTimeRange = (event) => {
   if (Number.isNaN(start.getTime())) {
     return null;
   }
-  const duration = Number(event.duration);
+  const duration = Number(event.durationHours ?? event.duration);
   const durationHours = Number.isFinite(duration) && duration > 0 ? duration : 2;
   const end = new Date(start);
   end.setMinutes(end.getMinutes() + Math.round(durationHours * 60));
