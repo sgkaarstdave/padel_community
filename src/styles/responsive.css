@@ -40,6 +40,17 @@
   .app-shell {
     grid-template-columns: 1fr;
     border-radius: 24px;
+    overflow: visible;
+  }
+
+  .mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 120;
+    background: rgba(2, 6, 23, 0.96);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 12px 24px rgba(2, 6, 23, 0.35);
   }
 
   .sidebar {
@@ -230,12 +241,6 @@
     justify-content: space-between;
     gap: 14px;
     padding: 16px 18px;
-    background: rgba(2, 6, 23, 0.95);
-    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-    position: sticky;
-    top: 0;
-    z-index: 80;
-    backdrop-filter: blur(12px);
   }
 
   .mobile-header__brand {
