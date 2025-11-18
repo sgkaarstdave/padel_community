@@ -1,5 +1,14 @@
 import { state, updateEventById, prependEvent, removeEventById } from '../state/store.js';
 import {
+  createEvent as persistEvent,
+  updateEvent as persistEventUpdate,
+  deleteEvent as removeEventRemote,
+  incrementSlotsTaken,
+  decrementSlotsTaken,
+} from '../state/eventRepository.js';
+import { places } from '../state/storage.js';
+import { getCurrentUser } from '../state/auth.js';
+import {
   eventsOverlap,
   getEventTimeRange,
   hasEventStarted,
@@ -9,12 +18,14 @@ import {
 const CONFLICT_MESSAGE =
   'Die Session überschneidet sich mit einer anderen, der du bereits zugesagt hast.';
 
-const createEventControllers = ({ refreshUI, navigate }) => {
+const createEventControllers = ({ refreshUI, navigate, reportError }) => {
   const form = document.getElementById('eventForm');
   const submitButton = form?.querySelector('button[type="submit"]');
   const cancelEditButton = document.getElementById('cancelEditButton');
   const locationSelect = form?.querySelector('select[name="location"]');
   const customLocationInput = document.getElementById('customLocationInput');
+  const notifyError = typeof reportError === 'function' ? reportError : () => {};
+  const locationCityMap = new Map(places.map((place) => [place.name, place.city || '']));
 
   let editingEventId = null;
 
@@ -159,10 +170,12 @@ const createEventControllers = ({ refreshUI, navigate }) => {
       : 0;
 
     const capacityValue = Math.max(2, Number(raw.capacity) || 0);
+    const cityValue = locationCityMap.get(locationValue) || '';
 
     return {
       title,
       location: locationValue,
+      city: cityValue,
       date,
       time,
       duration,
@@ -187,7 +200,7 @@ const createEventControllers = ({ refreshUI, navigate }) => {
     });
   };
 
-  const joinSession = (id) => {
+  const joinSession = async (id) => {
     const targetEvent = state.events.find((event) => event.id === id);
     if (!targetEvent) {
       return false;
@@ -202,54 +215,46 @@ const createEventControllers = ({ refreshUI, navigate }) => {
       window.alert('Diese Session hat bereits begonnen.');
       return false;
     }
-    const changed = updateEventById(id, (event) => {
-      const deadlinePassed =
-        !!event.deadline && new Date(event.deadline).getTime() < now.getTime();
-      if (hasEventEnded(event, now)) {
-        return null;
-      }
-      const capacity = Math.max(0, Number(event.capacity) || 0);
-      const attendees = Math.max(0, Number(event.attendees) || 0);
-      const isFull = capacity === 0 || attendees >= capacity;
-      if (event.joined || deadlinePassed || isFull) {
-        return null;
-      }
-      const history = Array.isArray(event.history) ? event.history : [];
-      return {
-        ...event,
-        joined: true,
-        attendees: Math.min(capacity, attendees + 1),
-        history: [{ timestamp: now.toISOString(), type: 'join' }, ...history],
-      };
-    });
-    if (changed) {
-      refreshUI();
+    const deadlinePassed =
+      !!targetEvent.deadline && new Date(targetEvent.deadline).getTime() < now.getTime();
+    const capacity = Math.max(0, Number(targetEvent.capacity) || 0);
+    const attendees = Math.max(0, Number(targetEvent.attendees) || 0);
+    if (deadlinePassed || (capacity > 0 && attendees >= capacity)) {
+      return false;
     }
-    return changed;
+    try {
+      const updatedEvent = await incrementSlotsTaken(id);
+      if (updatedEvent) {
+        updateEventById(id, () => updatedEvent);
+        refreshUI();
+        notifyError('');
+        return true;
+      }
+    } catch (error) {
+      console.error('Teilnahme konnte nicht gespeichert werden', error);
+      notifyError(error.message || 'Teilnahme konnte nicht gespeichert werden.');
+    }
+    return false;
   };
 
-  const withdrawFromSession = (id) => {
+  const withdrawFromSession = async (id) => {
     const now = new Date();
-    const changed = updateEventById(id, (event) => {
-      if (!event.joined) {
-        return null;
+    try {
+      const updatedEvent = await decrementSlotsTaken(id);
+      if (updatedEvent) {
+        updateEventById(id, () => updatedEvent);
+        refreshUI();
+        notifyError('');
+        return true;
       }
-      const attendees = Math.max(0, Number(event.attendees) || 0);
-      const history = Array.isArray(event.history) ? event.history : [];
-      return {
-        ...event,
-        joined: false,
-        attendees: Math.max(0, attendees - 1),
-        history: [{ timestamp: now.toISOString(), type: 'leave' }, ...history],
-      };
-    });
-    if (changed) {
-      refreshUI();
+    } catch (error) {
+      console.error('Absage konnte nicht gespeichert werden', error);
+      notifyError(error.message || 'Absage konnte nicht gespeichert werden.');
     }
-    return changed;
+    return false;
   };
 
-  const toggleParticipation = (id) => {
+  const toggleParticipation = async (id) => {
     const event = state.events.find((session) => session.id === id);
     if (!event) {
       return;
@@ -265,14 +270,15 @@ const createEventControllers = ({ refreshUI, navigate }) => {
       if (!confirmed) {
         return;
       }
-      withdrawFromSession(id);
+      await withdrawFromSession(id);
     } else {
-      joinSession(id);
+      await joinSession(id);
     }
   };
 
-  const handleFormSubmit = (domEvent) => {
+  const handleFormSubmit = async (domEvent) => {
     domEvent.preventDefault();
+    notifyError('');
     const normalized = extractFormData();
     if (!normalized) {
       return;
@@ -299,36 +305,48 @@ const createEventControllers = ({ refreshUI, navigate }) => {
         return;
       }
 
-      const updated = updateEventById(editingEventId, (event) => {
-        if (!event.createdByMe) {
-          return null;
+      const history = Array.isArray(existingEvent.history) ? existingEvent.history : [];
+      const attendees = Math.max(0, Number(existingEvent.attendees) || 0);
+      const capacity = Math.max(attendees, normalized.capacity);
+      const payload = {
+        ...existingEvent,
+        ...normalized,
+        capacity,
+        history: [{ timestamp: now.toISOString(), type: 'update' }, ...history],
+      };
+      try {
+        const updatedEvent = await persistEventUpdate(payload);
+        if (updatedEvent) {
+          updateEventById(editingEventId, () => updatedEvent);
+          resetFormState();
+          refreshUI();
+          notifyError('');
+          navigate('my-appointments');
         }
-        const history = Array.isArray(event.history) ? event.history : [];
-        const attendees = Math.max(0, Number(event.attendees) || 0);
-        const capacity = Math.max(attendees, normalized.capacity);
-        return {
-          ...event,
-          ...normalized,
-          capacity,
-          history: [{ timestamp: now.toISOString(), type: 'update' }, ...history],
-        };
-      });
-
-      if (updated) {
-        resetFormState();
-        refreshUI();
-        navigate('my-appointments');
+      } catch (error) {
+        console.error('Event konnte nicht aktualisiert werden', error);
+        notifyError(error.message || 'Event konnte nicht aktualisiert werden.');
       }
       return;
     }
 
-    const id = `evt-${crypto.randomUUID?.() || Date.now()}`;
-    const attendees = 1;
     const createdAt = now.toISOString();
+    const currentUser = getCurrentUser();
+    const ownerLabel = currentUser?.displayName || currentUser?.email || 'Du';
+    const participants = currentUser?.email
+      ? [
+          {
+            email: currentUser.email.toLowerCase(),
+            displayName: currentUser.displayName || currentUser.email,
+            joinedAt: createdAt,
+          },
+        ]
+      : [];
+    const attendees = Math.max(1, participants.length || 0);
 
     const draft = {
       ...normalized,
-      id,
+      id: `draft-${Date.now()}`,
       attendees,
     };
     const conflictingSession = findConflictingSession(draft);
@@ -339,23 +357,31 @@ const createEventControllers = ({ refreshUI, navigate }) => {
 
     const eventToStore = {
       ...normalized,
-      id,
-      owner: 'Du',
+      owner: ownerLabel,
       attendees,
       createdAt,
       joined: true,
       createdByMe: true,
+      createdByEmail: currentUser?.email || null,
+      participants,
       history: [
         { timestamp: createdAt, type: 'create' },
         { timestamp: createdAt, type: 'join' },
       ],
     };
 
-    prependEvent(eventToStore);
-    resetFormState();
-    refreshUI();
-    navigate('my-appointments');
-    focusTitleField();
+    try {
+      const createdEvent = await persistEvent(eventToStore);
+      prependEvent(createdEvent);
+      resetFormState();
+      refreshUI();
+      notifyError('');
+      navigate('my-appointments');
+      focusTitleField();
+    } catch (error) {
+      console.error('Event konnte nicht erstellt werden', error);
+      notifyError(error.message || 'Event konnte nicht erstellt werden.');
+    }
   };
 
   const setFieldValue = (selector, value = '') => {
@@ -404,7 +430,7 @@ const createEventControllers = ({ refreshUI, navigate }) => {
     focusTitleField();
   };
 
-  const deleteEvent = (id) => {
+  const deleteEvent = async (id) => {
     const event = state.events.find((session) => session.id === id);
     if (!event || !event.createdByMe) {
       return;
@@ -417,13 +443,20 @@ const createEventControllers = ({ refreshUI, navigate }) => {
     if (!confirmed) {
       return;
     }
-    const removed = removeEventById(id);
-    if (removed) {
-      if (editingEventId === id) {
-        resetFormState();
+    try {
+      await removeEventRemote(id);
+      const removed = removeEventById(id);
+      if (removed) {
+        if (editingEventId === id) {
+          resetFormState();
+        }
+        refreshUI();
+        notifyError('');
+        navigate('my-appointments');
       }
-      refreshUI();
-      navigate('my-appointments');
+    } catch (error) {
+      console.error('Event konnte nicht gelöscht werden', error);
+      notifyError(error.message || 'Event konnte nicht gelöscht werden.');
     }
   };
 

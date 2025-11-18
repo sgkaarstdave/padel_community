@@ -14,8 +14,9 @@ entdecken.
   direkten Links zur Buchung.
 - 🔐 **Sichere Accounts** – Registriere dich per E-Mail oder nutze die
   Google-Anmeldung, um deine Daten zu schützen.
-- 🧠 **Lokale Speicherung** – Events werden lokal gespeichert, sodass deine
-  eigenen Termine und Zusagen beim nächsten Besuch erhalten bleiben.
+- 🧠 **Synchronisierte Events** – Alle Termine werden automatisch über Supabase
+  geladen und gespeichert, sodass deine eigenen Matches sowie Zusagen zwischen
+  Sessions bestehen bleiben.
 - ✨ **Modernes Interface** – Glas-Effekt, Animationen und Dark-UI sorgen für
   eine zeitgemäße Nutzererfahrung. Animationen lassen sich auf Wunsch
   deaktivieren.
@@ -42,9 +43,9 @@ entdecken.
 5. Unter „Padel-Spots“ findest du inspirierende Locations inklusive externer
    Links zur Buchung.
 
-> Tipp: Die App speichert Events im `localStorage` des Browsers. Beim Einsatz im
-> privaten Modus oder nach dem Löschen der Browserdaten werden Einträge erneut
-> mit Demo-Inhalten initialisiert.
+> Tipp: Events werden direkt in der Supabase-Tabelle `events` verwaltet. Stelle
+> sicher, dass die Supabase-Umgebung erreichbar ist, damit neue Termine und
+> Zusagen korrekt synchronisiert werden.
 
 ## Google Anmeldung aktivieren
 
