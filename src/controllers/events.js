@@ -15,6 +15,26 @@ import {
   hasEventEnded,
 } from '../utils/time.js';
 
+const MAX_DEADLINE_LEAD_TIME_MS = 5 * 60 * 1000;
+const DEADLINE_MINIMUM_OFFSET_MS = 60 * 1000;
+
+const formatDeadlineForInput = (value) => {
+  if (!value) {
+    return '';
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const pad = (num) => String(num).padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 const CONFLICT_MESSAGE =
   'Die Session überschneidet sich mit einer anderen, der du bereits zugesagt hast.';
 
@@ -24,10 +44,70 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
   const cancelEditButton = document.getElementById('cancelEditButton');
   const locationSelect = form?.querySelector('select[name="location"]');
   const customLocationInput = document.getElementById('customLocationInput');
+  const dateInput = form?.querySelector('input[name="date"]');
+  const timeInput = form?.querySelector('input[name="time"]');
+  const deadlineInput = form?.querySelector('input[name="rsvpDeadline"]');
   const notifyError = typeof reportError === 'function' ? reportError : () => {};
   const locationCityMap = new Map(places.map((place) => [place.name, place.city || '']));
 
   let editingEventId = null;
+
+  const getStartDateFromInputs = () => {
+    if (!dateInput?.value || !timeInput?.value) {
+      return null;
+    }
+    const start = new Date(`${dateInput.value}T${timeInput.value}`);
+    if (Number.isNaN(start.getTime())) {
+      return null;
+    }
+    return start;
+  };
+
+  const clampDeadlineFieldValue = () => {
+    if (!deadlineInput || !deadlineInput.value) {
+      return;
+    }
+    const currentValue = new Date(deadlineInput.value);
+    if (Number.isNaN(currentValue.getTime())) {
+      deadlineInput.value = '';
+      return;
+    }
+    const minValue = deadlineInput.min ? new Date(deadlineInput.min) : null;
+    const maxValue = deadlineInput.max ? new Date(deadlineInput.max) : null;
+    if (minValue && currentValue.getTime() < minValue.getTime()) {
+      deadlineInput.value = deadlineInput.min;
+      return;
+    }
+    if (maxValue && currentValue.getTime() > maxValue.getTime()) {
+      deadlineInput.value = deadlineInput.max;
+    }
+  };
+
+  const applyDeadlineFieldBounds = () => {
+    if (!deadlineInput) {
+      return;
+    }
+    const now = new Date();
+    let minDate = new Date(now.getTime() + DEADLINE_MINIMUM_OFFSET_MS);
+    let maxDate = null;
+    const startDate = getStartDateFromInputs();
+    if (startDate) {
+      const latestBeforeStart = new Date(startDate.getTime() - DEADLINE_MINIMUM_OFFSET_MS);
+      const earliestAllowed = new Date(startDate.getTime() - MAX_DEADLINE_LEAD_TIME_MS);
+      minDate = new Date(Math.max(minDate.getTime(), earliestAllowed.getTime()));
+      maxDate = latestBeforeStart;
+      if (minDate.getTime() > maxDate.getTime()) {
+        minDate = new Date(Math.min(minDate.getTime(), latestBeforeStart.getTime()));
+      }
+    }
+    deadlineInput.min = formatDeadlineForInput(minDate);
+    if (maxDate) {
+      deadlineInput.max = formatDeadlineForInput(maxDate);
+    } else {
+      deadlineInput.removeAttribute('max');
+    }
+    clampDeadlineFieldValue();
+  };
 
   const setFormMode = (mode) => {
     if (!form) {
@@ -49,6 +129,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       form.reset();
     }
     setFormMode('create');
+    applyDeadlineFieldBounds();
   };
 
   const focusTitleField = () => {
@@ -85,12 +166,27 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
 
   if (form) {
     setFormMode('create');
+    applyDeadlineFieldBounds();
   }
 
   if (cancelEditButton) {
     cancelEditButton.addEventListener('click', () => {
       resetFormState();
       navigate('my-appointments');
+    });
+  }
+
+  if (dateInput) {
+    dateInput.addEventListener('input', applyDeadlineFieldBounds);
+    dateInput.addEventListener('change', applyDeadlineFieldBounds);
+  }
+  if (timeInput) {
+    timeInput.addEventListener('input', applyDeadlineFieldBounds);
+    timeInput.addEventListener('change', applyDeadlineFieldBounds);
+  }
+  if (form) {
+    form.addEventListener('reset', () => {
+      requestAnimationFrame(applyDeadlineFieldBounds);
     });
   }
 
@@ -150,13 +246,12 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       window.alert('Die Zusagefrist muss in der Zukunft liegen.');
       return null;
     }
-    const maximumLeadTimeMs = 5 * 60 * 1000;
     const startTimeMs = range.start.getTime();
     if (deadlineDate.getTime() >= startTimeMs) {
       window.alert('Die Zusagefrist muss vor dem Start der Session liegen.');
       return null;
     }
-    if (deadlineDate.getTime() < startTimeMs - maximumLeadTimeMs) {
+    if (deadlineDate.getTime() < startTimeMs - MAX_DEADLINE_LEAD_TIME_MS) {
       window.alert(
         'Die Zusagefrist darf höchstens fünf Minuten vor dem Start der Session liegen.',
       );
@@ -398,23 +493,6 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     }
   };
 
-  const formatDeadlineForInput = (value) => {
-    if (!value) {
-      return '';
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return value;
-    }
-    const pad = (num) => String(num).padStart(2, '0');
-    const year = date.getFullYear();
-    const month = pad(date.getMonth() + 1);
-    const day = pad(date.getDate());
-    const hours = pad(date.getHours());
-    const minutes = pad(date.getMinutes());
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-  };
-
   const setFieldValue = (selector, value = '') => {
     if (!form) {
       return;
@@ -438,10 +516,12 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     setFieldValue('select[name="skill"]', event.skill || 'Intermediate');
     setFieldValue('textarea[name="notes"]', event.notes || '');
     setFieldValue('input[name="paypalLink"]', event.paypalLink || event.paymentLink || '');
+    applyDeadlineFieldBounds();
     setFieldValue(
       'input[name="rsvpDeadline"]',
       formatDeadlineForInput(event.rsvpDeadline || event.deadline),
     );
+    clampDeadlineFieldValue();
     applyLocationSelection(event.location);
   };
 
