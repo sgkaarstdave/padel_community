@@ -135,6 +135,7 @@ const createEventCard = (event) => {
     attendees,
     capacity,
   } = getEventMeta(event);
+  const rsvpDeadline = event.rsvpDeadline || event.deadline || '';
 
   const card = document.createElement('article');
   card.classList.add('event-card');
