@@ -122,7 +122,8 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     const date = raw.date;
     const time = raw.time;
     const rawDuration = Number(raw.duration);
-    const duration = Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : 2;
+    const durationValue = Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : 2;
+    const duration = Math.max(1, Math.round(durationValue));
     const range = getEventTimeRange({ date, time, duration });
     if (!range) {
       window.alert('Bitte gib ein gültiges Datum und eine gültige Startzeit an.');
@@ -156,6 +157,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       );
       return null;
     }
+    const normalizedDeadline = deadlineDate.toISOString();
 
     const rawTotalCostValue = raw.totalCost ?? '';
     const hasTotalCostInput = String(rawTotalCostValue).trim() !== '';
@@ -184,7 +186,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       skill: raw.skill || 'Intermediate',
       notes: raw.notes?.trim() ?? '',
       paymentLink: raw.paymentLink?.trim() || '',
-      deadline: deadlineValue,
+      deadline: normalizedDeadline,
     };
   };
 
@@ -384,6 +386,23 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     }
   };
 
+  const formatDeadlineForInput = (value) => {
+    if (!value) {
+      return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+    const pad = (num) => String(num).padStart(2, '0');
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   const setFieldValue = (selector, value = '') => {
     if (!form) {
       return;
@@ -407,7 +426,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     setFieldValue('select[name="skill"]', event.skill || 'Intermediate');
     setFieldValue('textarea[name="notes"]', event.notes || '');
     setFieldValue('input[name="paymentLink"]', event.paymentLink || '');
-    setFieldValue('input[name="deadline"]', event.deadline || '');
+    setFieldValue('input[name="deadline"]', formatDeadlineForInput(event.deadline));
     applyLocationSelection(event.location);
   };
 

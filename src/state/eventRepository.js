@@ -64,6 +64,33 @@ const computeDurationFromRange = (startTime, endTime) => {
   return Math.max(0.5, Math.round((diff / 3600000) * 10) / 10);
 };
 
+const normalizeTimestamp = (value) => {
+  if (!value) {
+    return null;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date.toISOString();
+};
+
+const normalizeDurationHours = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return 2;
+  }
+  return Math.max(1, Math.round(numeric));
+};
+
+const normalizeCurrency = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    return 0;
+  }
+  return Math.round(numeric * 100) / 100;
+};
+
 const safeParseMetadata = (value) => {
   if (!value || typeof value !== 'string') {
     return {};
@@ -156,6 +183,21 @@ const mapRowToEvent = (row, session) => {
   const attendees = Math.min(capacity, Number(row.slots_taken ?? participants.length) || 0);
   const startTime = normalizeTimeValue(row.start_time) || null;
   const endTime = normalizeTimeValue(row.end_time) || null;
+  const durationFromColumn = Number(row.duration_hours);
+  const duration =
+    Number.isFinite(durationFromColumn) && durationFromColumn > 0
+      ? durationFromColumn
+      : metadata.duration || computeDurationFromRange(startTime, endTime);
+  const totalCostFromColumn = Number(row.total_cost);
+  const totalCost =
+    Number.isFinite(totalCostFromColumn) && totalCostFromColumn >= 0
+      ? totalCostFromColumn
+      : metadata.totalCost;
+  const notes =
+    typeof row.notes === 'string' ? row.notes : metadata.notes || '';
+  const paymentLink =
+    typeof row.paypal_link === 'string' ? row.paypal_link : metadata.paymentLink || '';
+  const deadline = row.rsvp_deadline || metadata.deadline || '';
   return {
     id: row.id,
     title: row.title || 'Padel Session',
@@ -163,14 +205,14 @@ const mapRowToEvent = (row, session) => {
     city: row.city || metadata.city || '',
     date: row.date || '',
     time: startTime ? startTime.slice(0, 5) : '',
-    duration: metadata.duration || computeDurationFromRange(startTime, endTime),
-    totalCost: metadata.totalCost,
+    duration,
+    totalCost,
     capacity,
     attendees,
     skill: row.skill_level || 'Intermediate',
-    notes: metadata.notes,
-    paymentLink: metadata.paymentLink,
-    deadline: metadata.deadline,
+    notes,
+    paymentLink,
+    deadline,
     owner: deriveOwnerName(row, metadata, session),
     createdAt: metadata.createdAt,
     joined,
@@ -197,6 +239,7 @@ const buildMetadataPayload = (event) => ({
 
 const buildRowPayload = (event) => {
   const startTime = normalizeTimeValue(event.time) || '00:00:00';
+  const normalizedDurationHours = normalizeDurationHours(event.duration);
   const capacity = Math.max(
     Number(event.capacity) || 0,
     Number(event.attendees) || 0,
@@ -210,12 +253,17 @@ const buildRowPayload = (event) => {
     title: event.title,
     date: event.date,
     start_time: startTime,
-    end_time: addDurationToTime(startTime, event.duration) || startTime,
+    end_time: addDurationToTime(startTime, normalizedDurationHours) || startTime,
     city: event.city || '',
     club_name: event.location || '',
     skill_level: event.skill || 'Intermediate',
     slots_total: capacity,
     slots_taken: attendees,
+    total_cost: normalizeCurrency(event.totalCost),
+    notes: typeof event.notes === 'string' ? event.notes : '',
+    paypal_link: typeof event.paymentLink === 'string' ? event.paymentLink : '',
+    duration_hours: normalizedDurationHours,
+    rsvp_deadline: normalizeTimestamp(event.deadline),
     description: JSON.stringify(buildMetadataPayload({ ...event, capacity, attendees })),
   };
   if (event.id) {
