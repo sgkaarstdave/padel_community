@@ -73,6 +73,39 @@
   gap: 12px;
 }
 
+.deadline-field {
+  align-items: stretch;
+}
+
+.deadline-select-wrapper {
+  min-width: 220px;
+}
+
+.deadline-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.65);
+  animation: fadeIn 0.3s ease;
+}
+
+.deadline-custom[hidden] {
+  display: none !important;
+}
+
+.deadline-custom__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.deadline-custom__hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .form .label-text {
   display: inline-flex;
   align-items: center;

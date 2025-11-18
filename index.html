@@ -360,10 +360,24 @@
                   >Zusage Deadline
                   <span class="required-marker" aria-hidden="true">*</span></span
                 >
-                <div class="datetime-inputs">
-                  <select name="rsvpDeadlineOption" id="deadlineSelect" required>
-                    <option value="">Zusage-Deadline wählen</option>
-                  </select>
+                <div class="datetime-inputs deadline-field">
+                  <div class="deadline-select-wrapper">
+                    <select name="rsvpDeadlineOption" id="deadlineSelect" required>
+                      <option value="">Zusage-Deadline wählen</option>
+                    </select>
+                  </div>
+                  <div class="deadline-custom" data-deadline-custom hidden>
+                    <span class="deadline-custom__label">Individuelle Deadline</span>
+                    <input
+                      type="datetime-local"
+                      id="customDeadlineInput"
+                      data-deadline-custom-input
+                      autocomplete="off"
+                    />
+                    <small class="deadline-custom__hint" data-deadline-helper>
+                      Wähle zuerst Datum und Startzeit, um eine Zusagefrist festzulegen.
+                    </small>
+                  </div>
                 </div>
                 <input type="datetime-local" name="rsvpDeadline" hidden />
               </label>
