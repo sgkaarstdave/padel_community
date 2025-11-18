@@ -136,6 +136,7 @@ const createEventCard = (event) => {
     capacity,
   } = getEventMeta(event);
   const rsvpDeadline = event.rsvpDeadline || event.deadline || '';
+  const showParticipationButton = !event.createdByMe;
 
   const card = document.createElement('article');
   card.classList.add('event-card');
@@ -197,13 +198,19 @@ const createEventCard = (event) => {
           (attendees / Math.max(1, capacity)) * 100
         )}%"></span></div>
         <small class="muted">${statusLabel}</small>
-        <button ${buttonDisabled ? 'disabled' : ''} data-id="${event.id}">${buttonLabel}</button>
+        ${
+          showParticipationButton
+            ? `<button ${buttonDisabled ? 'disabled' : ''} data-id="${event.id}">${buttonLabel}</button>`
+            : ''
+        }
       </div>
     `;
 
-  const button = card.querySelector('button');
-  if (button) {
-    button.addEventListener('click', () => toggleParticipationHandler(event.id));
+  if (showParticipationButton) {
+    const button = card.querySelector('button');
+    if (button) {
+      button.addEventListener('click', () => toggleParticipationHandler(event.id));
+    }
   }
 
   return card;
