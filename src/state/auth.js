@@ -139,12 +139,18 @@ const registerEmailUser = async ({ email, password, displayName }) => {
     },
   });
 
+  const duplicateAccountMessage =
+    'Für diese E-Mail-Adresse existiert bereits ein Konto. Bitte melde dich stattdessen an.';
+
   if (error) {
-    const message =
-      error.code === 'user_already_exists'
-        ? 'Für diese E-Mail-Adresse existiert bereits ein Konto. Bitte melde dich stattdessen an.'
-        : error.message || 'Registrierung fehlgeschlagen.';
-    throw new Error(message);
+    const message = error.code === 'user_already_exists' ? duplicateAccountMessage : error.message;
+    throw new Error(message || 'Registrierung fehlgeschlagen.');
+  }
+
+  const userIdentities = data?.user?.identities;
+  const existingAccountDetected = Array.isArray(userIdentities) && userIdentities.length === 0;
+  if (existingAccountDetected) {
+    throw new Error(duplicateAccountMessage);
   }
 
   if (!data?.session) {
