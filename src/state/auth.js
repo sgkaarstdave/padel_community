@@ -1,70 +1,18 @@
-import {
-  decodeJwt,
-  generateSalt,
-  generateToken,
-  hashPassword,
-  timingSafeEqual,
-} from '../utils/crypto.js';
+import { createSupabaseClient } from './supabaseClient.js';
 
-const USERS_KEY = 'padel-community-users-v1';
-const SESSION_KEY = 'padel-community-session-v1';
-const PASSWORD_ITERATIONS = 210000;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+const SESSION_KEY = 'padel-community-session-v2';
 
 const listeners = new Set();
-let users = [];
 let currentSession = null;
-let lastToken = null;
+let lastPersistedToken = null;
 
-const safeParse = (value, fallback) => {
+const supabase = createSupabaseClient();
+
+const safeParse = (value, fallback = null) => {
   try {
-    const parsed = JSON.parse(value);
-    return parsed ?? fallback;
+    return JSON.parse(value) ?? fallback;
   } catch (error) {
     return fallback;
-  }
-};
-
-const loadUsers = () => {
-  try {
-    const stored = localStorage.getItem(USERS_KEY);
-    if (!stored) {
-      return [];
-    }
-    const parsed = safeParse(stored, []);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed.filter((user) => typeof user?.email === 'string');
-  } catch (error) {
-    console.warn('Konnte Benutzer nicht laden', error);
-    return [];
-  }
-};
-
-const loadSession = () => {
-  try {
-    const stored = localStorage.getItem(SESSION_KEY);
-    if (!stored) {
-      return null;
-    }
-    const session = safeParse(stored, null);
-    if (!session || typeof session?.token !== 'string') {
-      return null;
-    }
-    return session;
-  } catch (error) {
-    console.warn('Konnte Session nicht laden', error);
-    return null;
-  }
-};
-
-const persistUsers = () => {
-  try {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  } catch (error) {
-    console.warn('Konnte Benutzer nicht speichern', error);
   }
 };
 
@@ -80,6 +28,23 @@ const persistSession = () => {
   }
 };
 
+const loadPersistedSession = () => {
+  try {
+    const stored = localStorage.getItem(SESSION_KEY);
+    if (!stored) {
+      return null;
+    }
+    const parsed = safeParse(stored, null);
+    if (!parsed || typeof parsed.email !== 'string') {
+      return null;
+    }
+    return parsed;
+  } catch (error) {
+    console.warn('Konnte Session nicht laden', error);
+    return null;
+  }
+};
+
 const emit = () => {
   const snapshot = currentSession ? { ...currentSession } : null;
   listeners.forEach((listener) => {
@@ -91,39 +56,52 @@ const emit = () => {
   });
 };
 
-const createSession = (user, overrides = {}) => ({
-  userId: user.id,
-  email: user.email,
-  displayName: user.displayName,
-  provider: user.provider,
-  avatarUrl: user.avatarUrl || null,
-  token: generateToken(32),
-  issuedAt: new Date().toISOString(),
-  ...overrides,
-});
-
-const normalizeEmail = (email) => email.trim().toLowerCase();
-
-const requireEmail = (email) => {
-  const value = normalizeEmail(email || '');
-  if (!EMAIL_PATTERN.test(value)) {
-    throw new Error('Bitte gib eine gültige E-Mail-Adresse an.');
-  }
-  return value;
+const normalizeDisplayName = (metadata = {}, fallbackEmail = '') => {
+  return (
+    metadata.displayName ||
+    metadata.full_name ||
+    metadata.name ||
+    metadata.user_name ||
+    fallbackEmail ||
+    ''
+  ).trim();
 };
 
-const validatePassword = (password) => {
-  if (!PASSWORD_PATTERN.test(password || '')) {
-    throw new Error(
-      'Das Passwort muss mindestens 8 Zeichen lang sein und Buchstaben sowie Zahlen enthalten.'
-    );
+const mapSupabaseSession = (supabaseSession, fallbackUser = null) => {
+  const user = supabaseSession?.user || fallbackUser;
+  if (!user?.email) {
+    return null;
   }
+  const metadata = user.user_metadata || {};
+  const appMetadata = user.app_metadata || {};
+  const displayName = normalizeDisplayName(metadata, user.email) || user.email;
+  const avatarUrl = metadata.avatar_url || metadata.picture || null;
+  const provider = appMetadata.provider || 'email';
+  const token = supabaseSession?.access_token || supabaseSession?.accessToken || null;
+  return {
+    userId: user.id,
+    email: user.email,
+    displayName,
+    provider,
+    avatarUrl,
+    token,
+  };
 };
 
-const updateSession = (session) => {
+const applySession = (session) => {
   currentSession = session;
+  lastPersistedToken = session?.token || null;
   persistSession();
   emit();
+  return session;
+};
+
+const applySupabaseSession = (supabaseSession, fallbackUser = null) => {
+  if (!supabaseSession && !fallbackUser) {
+    return applySession(null);
+  }
+  const normalized = mapSupabaseSession(supabaseSession, fallbackUser);
+  return applySession(normalized);
 };
 
 const getCurrentUser = () => currentSession;
@@ -133,132 +111,112 @@ const subscribeAuthChanges = (callback) => {
   return () => listeners.delete(callback);
 };
 
-const registerEmailUser = async ({ email, password, displayName }) => {
-  const normalizedEmail = requireEmail(email);
-  validatePassword(password);
+const normalizeEmail = (email) => (email || '').trim().toLowerCase();
 
-  const existing = users.find((user) => user.email === normalizedEmail);
-  if (existing) {
-    if (existing.provider === 'google') {
-      throw new Error('Diese E-Mail ist bereits mit einem Google-Konto verknüpft.');
+const registerEmailUser = async ({ email, password, displayName }) => {
+  const normalizedEmail = normalizeEmail(email);
+  const profileName = (displayName || '').trim();
+  const redirectTo = (() => {
+    try {
+      if (typeof window !== 'undefined' && window.location) {
+        return window.location.origin;
+      }
+      return undefined;
+    } catch (error) {
+      return undefined;
     }
-    throw new Error('Für diese E-Mail existiert bereits ein Konto.');
+  })();
+
+  const { data, error } = await supabase.auth.signUp({
+    email: normalizedEmail,
+    password,
+    options: {
+      emailRedirectTo: redirectTo,
+      data: {
+        displayName: profileName,
+        full_name: profileName,
+      },
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Registrierung fehlgeschlagen.');
   }
 
-  const salt = generateSalt(16);
-  const passwordHash = await hashPassword(password, salt, PASSWORD_ITERATIONS);
-  const id = typeof crypto?.randomUUID === 'function' ? crypto.randomUUID() : generateToken(16);
-  const name = (displayName || '').trim();
+  if (!data?.session && data?.user) {
+    applySupabaseSession(null, data.user);
+    return currentSession;
+  }
 
-  const user = {
-    id,
-    email: normalizedEmail,
-    displayName: name || normalizedEmail,
-    provider: 'password',
-    passwordHash,
-    passwordSalt: salt,
-    passwordIterations: PASSWORD_ITERATIONS,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  users = [...users, user];
-  persistUsers();
-
-  const session = createSession(user);
-  updateSession(session);
-  lastToken = session.token;
-  return session;
+  return applySupabaseSession(data.session);
 };
 
 const authenticateEmailUser = async ({ email, password }) => {
-  const normalizedEmail = requireEmail(email);
-  const user = users.find(
-    (candidate) => candidate.email === normalizedEmail && candidate.provider === 'password'
+  const normalizedEmail = normalizeEmail(email);
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: normalizedEmail,
+    password,
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Anmeldung fehlgeschlagen.');
+  }
+
+  return applySupabaseSession(data.session);
+};
+
+const logout = async () => {
+  try {
+    await supabase.auth.signOut();
+  } catch (error) {
+    console.warn('Konnte Benutzer nicht abmelden', error);
+  }
+  applySession(null);
+};
+
+const bootstrapSession = async () => {
+  const stored = loadPersistedSession();
+  if (stored) {
+    currentSession = stored;
+    lastPersistedToken = stored.token || null;
+    emit();
+  }
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      throw error;
+    }
+    applySupabaseSession(data.session);
+  } catch (error) {
+    console.warn('Konnte aktuelle Session nicht laden', error);
+    if (!lastPersistedToken) {
+      applySession(null);
+    }
+  }
+};
+
+bootstrapSession();
+
+const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT') {
+    applySession(null);
+    return;
+  }
+  applySupabaseSession(session);
+});
+
+if (authListener?.subscription) {
+  const originalUnsubscribe = authListener.subscription.unsubscribe.bind(
+    authListener.subscription
   );
-  if (!user) {
-    throw new Error('Für diese E-Mail wurde kein Konto gefunden.');
-  }
-  const { passwordSalt, passwordHash, passwordIterations = PASSWORD_ITERATIONS } = user;
-  const computedHash = await hashPassword(password, passwordSalt, passwordIterations);
-  if (!timingSafeEqual(passwordHash, computedHash)) {
-    throw new Error('Das eingegebene Passwort ist nicht korrekt.');
-  }
-  user.lastLoginAt = new Date().toISOString();
-  persistUsers();
-  const session = createSession(user);
-  updateSession(session);
-  lastToken = session.token;
-  return session;
-};
-
-const authenticateWithGoogle = async (credential) => {
-  if (typeof credential !== 'string' || credential.length === 0) {
-    throw new Error('Ungültige Google-Anmeldeantwort.');
-  }
-
-  const payload = decodeJwt(credential);
-  const email = requireEmail(payload.email);
-  const name = payload.name?.trim() || email;
-  const picture = payload.picture || null;
-  const providerId = payload.sub;
-
-  if (!providerId) {
-    throw new Error('Die Google-Antwort enthält keine eindeutige Kennung.');
-  }
-
-  const existingWithPassword = users.find(
-    (candidate) => candidate.email === email && candidate.provider === 'password'
-  );
-  if (existingWithPassword) {
-    throw new Error('Für diese E-Mail existiert bereits ein klassisches Konto.');
-  }
-
-  let user = users.find((candidate) => candidate.email === email && candidate.provider === 'google');
-  if (!user) {
-    const id = typeof crypto?.randomUUID === 'function' ? crypto.randomUUID() : generateToken(16);
-    user = {
-      id,
-      email,
-      displayName: name,
-      provider: 'google',
-      providerId,
-      avatarUrl: picture,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-    };
-    users = [...users, user];
-  } else {
-    user.displayName = name;
-    user.avatarUrl = picture || user.avatarUrl || null;
-    user.providerId = providerId;
-    user.lastLoginAt = new Date().toISOString();
-    user.updatedAt = new Date().toISOString();
-    users = users.map((candidate) => (candidate.id === user.id ? { ...user } : candidate));
-  }
-
-  persistUsers();
-  const session = createSession(user, { avatarUrl: user.avatarUrl, providerId });
-  updateSession(session);
-  lastToken = session.token;
-  return session;
-};
-
-const logout = () => {
-  lastToken = null;
-  updateSession(null);
-};
-
-users = loadUsers();
-currentSession = loadSession();
-if (currentSession) {
-  lastToken = currentSession.token;
+  authListener.subscription.unsubscribe = () => {
+    originalUnsubscribe();
+    listeners.clear();
+  };
 }
 
 export {
   authenticateEmailUser,
-  authenticateWithGoogle,
   getCurrentUser,
   logout,
   registerEmailUser,

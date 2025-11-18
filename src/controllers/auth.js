@@ -1,6 +1,5 @@
 import {
   authenticateEmailUser,
-  authenticateWithGoogle,
   getCurrentUser,
   logout,
   registerEmailUser,
@@ -57,69 +56,6 @@ const initialsFromName = (name) => {
   return initials.join('') || name.charAt(0).toUpperCase();
 };
 
-const initializeGoogleSignIn = (container, onCredential, onError) => {
-  if (!container) {
-    return;
-  }
-  const clientId = container.dataset.clientId || document.body.dataset.googleClientId;
-  if (!clientId) {
-    container.setAttribute('hidden', '');
-    if (typeof onError === 'function') {
-      onError('Für die Google-Anmeldung muss eine Client-ID hinterlegt werden.');
-    }
-    return;
-  }
-
-  const renderButton = () => {
-    if (!window.google || !window.google.accounts || !window.google.accounts.id) {
-      return false;
-    }
-
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: async (response) => {
-        if (!response?.credential) {
-          onError?.('Ungültige Antwort von Google erhalten.');
-          return;
-        }
-        try {
-          await onCredential(response.credential);
-        } catch (error) {
-          onError?.(error.message || 'Die Google-Anmeldung ist fehlgeschlagen.');
-        }
-      },
-      auto_select: false,
-      cancel_on_tap_outside: true,
-      ux_mode: 'popup',
-    });
-
-    window.google.accounts.id.renderButton(container, {
-      theme: 'outline',
-      size: 'large',
-      width: '100%',
-      locale: 'de',
-      shape: 'rectangular',
-    });
-    window.google.accounts.id.prompt();
-    return true;
-  };
-
-  if (renderButton()) {
-    return;
-  }
-
-  let attempts = 0;
-  const interval = window.setInterval(() => {
-    attempts += 1;
-    if (renderButton()) {
-      window.clearInterval(interval);
-    } else if (attempts > 40) {
-      window.clearInterval(interval);
-      onError?.('Die Google-Anmeldung konnte nicht initialisiert werden.');
-    }
-  }, 200);
-};
-
 const initializeAuth = ({ onAuthenticated, onLogout } = {}) => {
   const authGate = document.getElementById('authGate');
   const loginForm = document.getElementById('loginForm');
@@ -129,8 +65,6 @@ const initializeAuth = ({ onAuthenticated, onLogout } = {}) => {
   const userEmail = document.getElementById('userEmail');
   const userAvatar = document.getElementById('userAvatar');
   const logoutButton = document.getElementById('logoutButton');
-  const googleContainer = document.getElementById('googleSignInButton');
-  const googleError = document.getElementById('googleError');
   const appShell = document.querySelector('.app-shell');
 
   setActiveAuthView('login');
@@ -141,25 +75,11 @@ const initializeAuth = ({ onAuthenticated, onLogout } = {}) => {
     });
   });
 
-  const showGoogleError = (message) => {
-    if (!googleError) {
-      return;
-    }
-    if (message) {
-      googleError.textContent = message;
-      googleError.hidden = false;
-    } else {
-      googleError.textContent = '';
-      googleError.hidden = true;
-    }
-  };
-
   if (loginForm) {
     loginForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       setFormBusy(loginForm, true);
       setFormError(loginForm, '');
-      showGoogleError('');
       const formData = new FormData(loginForm);
       const email = formData.get('email');
       const password = formData.get('password');
@@ -192,8 +112,13 @@ const initializeAuth = ({ onAuthenticated, onLogout } = {}) => {
       }
 
       try {
-        await registerEmailUser({ email, password, displayName });
+        const session = await registerEmailUser({ email, password, displayName });
         registerForm.reset();
+        if (!session) {
+          window.alert(
+            'Bitte bestätige deine E-Mail-Adresse. Wir haben dir einen Link zur Aktivierung gesendet.'
+          );
+        }
         setActiveAuthView('login');
       } catch (error) {
         setFormError(registerForm, error.message || 'Registrierung fehlgeschlagen.');
@@ -204,25 +129,14 @@ const initializeAuth = ({ onAuthenticated, onLogout } = {}) => {
   }
 
   if (logoutButton) {
-    logoutButton.addEventListener('click', () => {
-      logout();
+    logoutButton.addEventListener('click', async () => {
+      try {
+        await logout();
+      } catch (error) {
+        console.warn('Abmeldung fehlgeschlagen', error);
+      }
     });
   }
-
-  initializeGoogleSignIn(
-    googleContainer,
-    async (credential) => {
-      showGoogleError('');
-      try {
-        await authenticateWithGoogle(credential);
-      } catch (error) {
-        showGoogleError(error.message || 'Die Google-Anmeldung ist fehlgeschlagen.');
-      }
-    },
-    (message) => {
-      showGoogleError(message);
-    }
-  );
 
   let lastHandledToken = null;
 
