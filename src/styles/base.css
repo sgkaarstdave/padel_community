@@ -54,6 +54,10 @@ body.sidebar-open {
   overflow: hidden;
 }
 
+body.mobile-nav-open {
+  overflow: hidden;
+}
+
 .app-shell {
   width: min(1200px, 100%);
   margin: 0 auto;
@@ -76,6 +80,15 @@ body.sidebar-open {
 }
 
 .sidebar__fab {
+  display: none;
+}
+
+.mobile-header {
+  display: none;
+  grid-column: 1 / -1;
+}
+
+.mobile-nav-overlay {
   display: none;
 }
 

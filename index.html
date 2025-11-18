@@ -133,6 +133,27 @@
     </div>
 
     <div class="app-shell">
+      <header class="mobile-header" id="mobileHeader">
+        <div class="mobile-header__brand">
+          <div class="mobile-header__icon">🎾</div>
+          <div>
+            <p class="mobile-header__title">Padel Community</p>
+            <p class="mobile-header__subtitle">Finde dein Match</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="mobile-header__toggle"
+          id="mobileNavToggle"
+          aria-controls="mobileNav"
+          aria-expanded="false"
+          aria-label="Navigation öffnen"
+        >
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+        </button>
+      </header>
       <aside class="sidebar">
         <div class="brand">
           <div class="brand__icon">🎾</div>
@@ -184,18 +205,6 @@
           </p>
         </div>
       </aside>
-      <button
-        type="button"
-        class="sidebar__fab"
-        id="sidebarFabToggle"
-        data-nav-toggle
-        aria-controls="sidebarNav"
-        aria-expanded="false"
-        aria-label="Navigation öffnen"
-      >
-        <span class="sr-only">Navigation öffnen</span>
-        <span aria-hidden="true"></span>
-      </button>
       <main>
         <header class="topbar">
           <div class="topbar__intro">
@@ -459,6 +468,33 @@
         </section>
       </main>
     </div>
+    <nav class="mobile-nav-overlay" id="mobileNav" aria-hidden="true">
+      <div class="mobile-nav-overlay__panel">
+        <div class="mobile-nav-overlay__header">
+          <div class="mobile-nav-overlay__brand">
+            <div class="mobile-nav-overlay__icon">🎾</div>
+            <div>
+              <p class="mobile-nav-overlay__title">Padel Community</p>
+              <p class="mobile-nav-overlay__subtitle">Navigation</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="mobile-nav-overlay__close"
+            id="mobileNavClose"
+            aria-label="Navigation schließen"
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+        <div class="mobile-nav-overlay__links">
+          <button class="nav-btn" data-target="dashboard">Community Dashboard</button>
+          <button class="nav-btn" data-target="my-sessions">Meine Sessions</button>
+          <button class="nav-btn active" data-target="my-appointments">Meine Termine</button>
+          <button class="nav-btn" data-target="discover">Padel-Spots entdecken</button>
+        </div>
+      </div>
+    </nav>
     <div
       class="sidebar__overlay"
       id="sidebarOverlay"
