@@ -44,6 +44,7 @@ body.sidebar-open {
 
 .app-shell {
   width: min(1200px, 100%);
+  margin: 0 auto;
   background: rgba(15, 23, 42, 0.75);
   border-radius: 26px;
   display: grid;
