@@ -67,6 +67,12 @@
   font-size: 0.9rem;
 }
 
+.datetime-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
 .form .label-text {
   display: inline-flex;
   align-items: center;
