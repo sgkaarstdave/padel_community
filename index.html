@@ -5,11 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Padel Community Hub</title>
     <script
-      src="https://accounts.google.com/gsi/client"
-      async
-      defer
-    ></script>
-    <script
       src="https://unpkg.com/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"
       crossorigin="anonymous"
       defer
@@ -51,8 +46,8 @@
         <div class="auth-card" data-view="login">
           <h2>Willkommen zurück</h2>
           <p class="muted">
-            Melde dich mit deiner E-Mail-Adresse an oder nutze deinen Google
-            Account.
+            Melde dich mit deiner E-Mail-Adresse an, um deine Padel-Sessions zu
+            verwalten.
           </p>
           <form id="loginForm" class="auth-form" novalidate>
             <label>
@@ -77,17 +72,6 @@
             <p class="form-error" role="alert" hidden></p>
             <button type="submit" class="primary auth-submit">Anmelden</button>
           </form>
-          <div class="auth-divider" role="separator">
-            <span></span>
-            <p>oder</p>
-            <span></span>
-          </div>
-          <div
-            id="googleSignInButton"
-            class="auth-google"
-            data-client-id=""
-          ></div>
-          <p id="googleError" class="form-error" role="alert" hidden></p>
         </div>
         <div class="auth-card" data-view="register" hidden>
           <h2>Neues Konto anlegen</h2>

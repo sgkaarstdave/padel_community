@@ -19,7 +19,8 @@ const createSupabaseClient = () => {
 
   cachedClient = supabaseFactory(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
-      persistSession: false,
+      persistSession: true,
+      autoRefreshToken: true,
       detectSessionInUrl: false,
     },
   });
