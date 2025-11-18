@@ -1,23 +1,122 @@
-@media (max-width: 1024px) {
+@media (max-width: 1280px) {
+  body {
+    padding: 20px;
+  }
+
+  .app-shell {
+    width: min(1100px, 100%);
+    grid-template-columns: minmax(220px, 30%) 1fr;
+  }
+
+  .sidebar {
+    padding: 28px 20px;
+  }
+
+  main {
+    padding: 28px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .calendar__grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  .places__grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  body {
+    padding: 18px;
+  }
+
   .app-shell {
     grid-template-columns: 1fr;
+    border-radius: 24px;
   }
 
   .sidebar {
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    padding: 20px;
+    justify-content: flex-start;
+    padding: 24px 20px;
+    gap: 18px;
+  }
+
+  .brand {
+    flex: 1 1 220px;
   }
 
   .sidebar__nav {
+    flex: 1 1 100%;
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+
+  .sidebar__nav::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .nav-btn {
+    flex: 1 0 180px;
+    text-align: center;
+    white-space: nowrap;
   }
 
   .sidebar__footer {
-    display: none;
+    flex: 1 1 100%;
+    order: 3;
+    display: block;
+  }
+
+  main {
+    padding: 24px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+  }
+
+  .topbar__intro,
+  .user-menu {
+    flex: 1 1 100%;
+  }
+
+  .user-menu {
+    justify-content: flex-start;
+  }
+
+  .panel {
+    padding: 22px;
+  }
+
+  .event-card {
+    grid-template-columns: 1fr;
+  }
+
+  .event-actions {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .calendar__grid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+
+  .form__grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .places__grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   }
 }
 
@@ -69,6 +168,10 @@
   .nav-btn {
     width: 100%;
     text-align: center;
+  }
+
+  .sidebar__footer {
+    display: none;
   }
 
   main {
