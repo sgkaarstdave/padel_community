@@ -118,7 +118,10 @@ const loadEventsFromBackend = async () => {
 
 const bootstrapApplication = async () => {
   if (!hasBootstrapped) {
-    setupNavigation();
+    setupNavigation(() => {
+      refreshUI();
+      loadEventsFromBackend();
+    });
     switchView('dashboard');
     setupCalendarControls(renderCalendar);
     bindFilters(() => {

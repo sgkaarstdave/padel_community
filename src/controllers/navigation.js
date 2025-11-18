@@ -33,9 +33,15 @@ const switchView = (target) => {
   }
 };
 
-const setupNavigation = () => {
+const setupNavigation = (onNavigate) => {
   document.querySelectorAll('.nav-btn').forEach((button) => {
-    button.addEventListener('click', () => switchView(button.dataset.target));
+    button.addEventListener('click', () => {
+      const target = button.dataset.target;
+      switchView(target);
+      if (typeof onNavigate === 'function') {
+        onNavigate(target);
+      }
+    });
   });
 };
 
