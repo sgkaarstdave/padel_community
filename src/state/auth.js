@@ -148,7 +148,15 @@ const registerEmailUser = async ({ email, password, displayName }) => {
   }
 
   const userIdentities = data?.user?.identities;
-  const existingAccountDetected = Array.isArray(userIdentities) && userIdentities.length === 0;
+  const existingAccountDetected = (() => {
+    if (Array.isArray(userIdentities)) {
+      return userIdentities.length === 0;
+    }
+    // Wenn Supabase keine Identitäten zurückgibt, handelt es sich in der Regel
+    // ebenfalls um ein bereits vorhandenes Konto. In diesem Fall wollen wir den
+    // Nutzer:innen keine erfolgreiche Registrierung vorgaukeln.
+    return Boolean(data?.user?.id);
+  })();
   if (existingAccountDetected) {
     throw new Error(duplicateAccountMessage);
   }
