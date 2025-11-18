@@ -141,7 +141,19 @@
             <p>Finde dein nächstes Match!</p>
           </div>
         </div>
-        <nav class="sidebar__nav">
+        <button
+          type="button"
+          class="sidebar__toggle"
+          id="sidebarToggle"
+          aria-controls="sidebarNav"
+          aria-expanded="false"
+          aria-label="Navigation umschalten"
+        >
+          <span class="sidebar__toggle-line" aria-hidden="true"></span>
+          <span class="sidebar__toggle-line" aria-hidden="true"></span>
+          <span class="sidebar__toggle-line" aria-hidden="true"></span>
+        </button>
+        <nav class="sidebar__nav" id="sidebarNav">
           <button class="nav-btn" data-target="dashboard">Community Dashboard</button>
           <button class="nav-btn" data-target="my-sessions">Meine Sessions</button>
           <button class="nav-btn active" data-target="my-appointments">
@@ -149,6 +161,7 @@
           </button>
           <button class="nav-btn" data-target="discover">Padel-Spots entdecken</button>
         </nav>
+        <div class="sidebar__overlay" id="sidebarOverlay" hidden aria-hidden="true"></div>
         <div class="sidebar__footer">
           <p class="muted">
             Tipp: Nutze Filter, um schnell die passenden Spiele nach Level und

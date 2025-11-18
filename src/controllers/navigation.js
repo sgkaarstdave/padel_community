@@ -1,3 +1,81 @@
+const MOBILE_BREAKPOINT = 1024;
+
+const isMobileNavigationViewport = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  if (typeof window.matchMedia === 'function') {
+    return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches;
+  }
+  return window.innerWidth <= MOBILE_BREAKPOINT;
+};
+
+const setupMobileNavigationToggle = () => {
+  const sidebar = document.querySelector('.sidebar');
+  const toggleButton = document.getElementById('sidebarToggle');
+  const overlay = document.getElementById('sidebarOverlay');
+  const body = document.body;
+
+  if (!sidebar || !toggleButton) {
+    return () => {};
+  }
+
+  const setMenuState = (isOpen) => {
+    sidebar.classList.toggle('is-open', isOpen);
+    toggleButton.setAttribute('aria-expanded', String(isOpen));
+    if (overlay) {
+      overlay.hidden = !isOpen;
+    }
+    if (body) {
+      body.classList.toggle('sidebar-open', isOpen && isMobileNavigationViewport());
+    }
+  };
+
+  const closeMenu = () => {
+    setMenuState(false);
+  };
+
+  const openMenu = () => {
+    if (isMobileNavigationViewport()) {
+      setMenuState(true);
+    }
+  };
+
+  const toggleMenu = () => {
+    if (sidebar.classList.contains('is-open')) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  };
+
+  toggleButton.addEventListener('click', toggleMenu);
+
+  if (overlay) {
+    overlay.addEventListener('click', closeMenu);
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeMenu();
+    }
+  });
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', () => {
+      if (!isMobileNavigationViewport()) {
+        setMenuState(false);
+      }
+    });
+  }
+
+  setMenuState(false);
+
+  return () => {
+    closeMenu();
+  };
+};
+
 const switchView = (target) => {
   document.querySelectorAll('.view').forEach((view) => {
     view.classList.toggle('active', view.id === `${target}-view`);
@@ -34,6 +112,7 @@ const switchView = (target) => {
 };
 
 const setupNavigation = (onNavigate) => {
+  const closeMobileMenu = setupMobileNavigationToggle();
   document.querySelectorAll('.nav-btn').forEach((button) => {
     button.addEventListener('click', () => {
       const target = button.dataset.target;
@@ -41,6 +120,7 @@ const setupNavigation = (onNavigate) => {
       if (typeof onNavigate === 'function') {
         onNavigate(target);
       }
+      closeMobileMenu();
     });
   });
 };
