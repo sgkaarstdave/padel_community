@@ -197,6 +197,7 @@
                 Meine Termine
               </button>
               <button class="nav-btn" data-target="discover">Padel-Spots entdecken</button>
+              <button class="nav-btn" data-target="settings">Einstellungen</button>
             </div>
           </div>
         </nav>
@@ -224,9 +225,6 @@
               <span id="userDisplayName"></span>
               <span id="userEmail" class="muted"></span>
             </div>
-            <button type="button" id="logoutButton" class="button button--ghost">
-              Abmelden
-            </button>
           </div>
         </header>
         <div id="dataError" class="alert alert--warning global-error" role="alert" hidden></div>
@@ -235,14 +233,11 @@
           <div class="push-permission__content">
             <p class="push-permission__title">Push-Benachrichtigungen</p>
             <p id="pushPermissionDescription" class="muted">
-              Erhalte sofortige Hinweise zu neuen Sessions oder Zu-/Absagen – direkt auf dein Gerät.
+              Wir prüfen deine Einstellungen …
             </p>
-          </div>
-          <div class="push-permission__actions">
-            <button type="button" class="primary" id="enablePushButton">Aktivieren</button>
-            <button type="button" class="button button--ghost" id="disablePushButton" hidden>
-              Deaktivieren
-            </button>
+            <p class="push-permission__hint muted">
+              Verwalte die Push-Einstellungen jederzeit über das Menü unter „Einstellungen“.
+            </p>
           </div>
         </div>
 
@@ -483,6 +478,69 @@
             <div id="placesList" class="places__grid"></div>
           </section>
         </section>
+
+        <!-- Einstellungen-Screen für Konto & Push -->
+        <section id="settings-view" class="view settings-view">
+          <section class="panel settings-panel">
+            <div class="panel__header">
+              <h3>Einstellungen</h3>
+              <p class="muted">
+                Passe Push-Benachrichtigungen und Kontoaktionen für deine Community an.
+              </p>
+            </div>
+
+            <div class="settings-section" id="pushSettingsSection">
+              <div class="settings-section__header">
+                <div>
+                  <p class="settings-section__eyebrow">Push-Benachrichtigungen</p>
+                  <h4>Erhalte Benachrichtigungen zu neuen Events, Zusagen und Absagen.</h4>
+                </div>
+                <span class="settings-status" id="pushSettingsStatus" data-state="inactive"
+                  >Deaktiviert</span
+                >
+              </div>
+              <p class="muted settings-section__description">
+                Aktiviere den Schalter, um sofort über neue Events und Reaktionen informiert zu werden.
+              </p>
+              <div class="settings-toggle">
+                <div class="settings-toggle__info">
+                  <p class="settings-toggle__label">Benachrichtigungen</p>
+                  <p class="muted settings-toggle__hint" id="pushSettingsHint">
+                    Wir prüfen deinen aktuellen Status …
+                  </p>
+                </div>
+                <!-- Push-Toggle wird in main.js gesteuert -->
+                <label class="switch" id="pushSettingsToggleWrapper">
+                  <input
+                    type="checkbox"
+                    class="switch__input"
+                    id="pushSettingsToggle"
+                    role="switch"
+                    aria-checked="false"
+                  />
+                  <span class="switch__track" aria-hidden="true">
+                    <span class="switch__thumb"></span>
+                  </span>
+                  <span class="switch__status" id="pushSettingsToggleLabel">Aus</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <h4>Konto</h4>
+              <p class="muted">
+                Melde dich sicher ab, wenn du das Gerät wechselst oder eine Pause einlegst.
+              </p>
+              <button
+                type="button"
+                class="button button--danger settings-logout"
+                data-action="logout"
+              >
+                Abmelden
+              </button>
+            </div>
+          </section>
+        </section>
       </main>
     </div>
     <nav class="mobile-nav-overlay" id="mobileNav" aria-hidden="true">
@@ -509,6 +567,7 @@
           <button class="nav-btn" data-target="my-sessions">Meine Sessions</button>
           <button class="nav-btn active" data-target="my-appointments">Meine Termine</button>
           <button class="nav-btn" data-target="discover">Padel-Spots entdecken</button>
+          <button class="nav-btn" data-target="settings">Einstellungen</button>
         </div>
       </div>
     </nav>

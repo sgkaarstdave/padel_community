@@ -64,7 +64,7 @@ const initializeAuth = ({ onAuthenticated, onLogout } = {}) => {
   const userDisplayName = document.getElementById('userDisplayName');
   const userEmail = document.getElementById('userEmail');
   const userAvatar = document.getElementById('userAvatar');
-  const logoutButton = document.getElementById('logoutButton');
+  const logoutButtons = Array.from(document.querySelectorAll('[data-action="logout"]'));
   const appShell = document.querySelector('.app-shell');
 
   setActiveAuthView('login');
@@ -128,13 +128,16 @@ const initializeAuth = ({ onAuthenticated, onLogout } = {}) => {
     });
   }
 
-  if (logoutButton) {
-    logoutButton.addEventListener('click', async () => {
+  if (logoutButtons.length > 0) {
+    const handleLogout = async () => {
       try {
         await logout();
       } catch (error) {
         console.warn('Abmeldung fehlgeschlagen', error);
       }
+    };
+    logoutButtons.forEach((button) => {
+      button.addEventListener('click', handleLogout);
     });
   }
 

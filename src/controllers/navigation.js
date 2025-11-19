@@ -199,6 +199,7 @@ const switchView = (target) => {
     'my-sessions': 'Meine Sessions',
     'my-appointments': 'Meine Termine',
     discover: 'Padel-Spots entdecken',
+    settings: 'Einstellungen',
   };
   const subtitles = {
     dashboard:
@@ -209,6 +210,8 @@ const switchView = (target) => {
       'Verwalte deine erstellten Matches, passe Details an und behalte alle Zusagen im Blick.',
     discover:
       'Entdecke beliebte Locations und buche direkt über den jeweiligen Anbieter.',
+    settings:
+      'Aktualisiere Benachrichtigungen und Kontoaktionen für dein Profil.',
   };
   const titleElement = document.getElementById('view-title');
   if (titleElement) {
