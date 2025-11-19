@@ -348,5 +348,8 @@ main {
   border-radius: 12px;
 }
 .sidebar__nav-content {
-  display: contents;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
 }
