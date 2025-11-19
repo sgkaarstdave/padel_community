@@ -351,7 +351,7 @@
     padding: 96px 48px 40px;
   }
 
-  .view--dashboard {
+  .view--dashboard.active {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: clamp(16px, 2vw, 24px);
@@ -370,7 +370,7 @@
     grid-column: 1 / -1;
   }
 
-  .view--split {
+  .view--split.active {
     display: grid;
     grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
     gap: clamp(18px, 3vw, 28px);
