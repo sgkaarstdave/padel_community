@@ -513,9 +513,8 @@ const computeRecentTrend = () => {
 };
 
 const updateStats = () => {
-  const filtered = getFilteredEvents();
   let openSpots = 0;
-  const joinableEvents = filtered.filter((event) => {
+  const joinableEvents = state.events.filter((event) => {
     if (!isEventJoinable(event)) {
       return false;
     }
