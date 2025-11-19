@@ -1,5 +1,5 @@
 const MOBILE_BREAKPOINT = 1024;
-const MOBILE_OVERLAY_BREAKPOINT = 768;
+const MOBILE_OVERLAY_BREAKPOINT = 1024;
 
 const isMobileNavigationViewport = () => {
   if (typeof window === 'undefined') {
