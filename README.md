@@ -61,6 +61,42 @@ Alternativ kannst du die ID auch global über ein `data-google-client-id`-Attrib
 auf dem `body`-Element hinterlegen. Ohne eine gültige ID wird der Google-Login
 automatisch deaktiviert und ein Hinweis angezeigt.
 
+## Web Push Benachrichtigungen
+
+Die App unterstützt echte Web Push Notifications (auch im PWA-Standalone-Modus).
+Damit diese funktionieren, sind drei Schritte notwendig:
+
+1. **Tabelle anlegen** – Lege die Tabelle `public.web_push_subscriptions` in
+   Supabase an. Das Schema ist in `docs/web-push-schema.sql` beschrieben und
+   umfasst u. a. `user_id`, `endpoint`, `p256dh`, `auth` sowie
+   `user_agent`/`created_at`.
+2. **Edge Functions deployen** – Stelle die Funktionen bereit, die
+   Subscriptions registrieren und Pushes verschicken:
+
+   ```bash
+   supabase functions deploy register-push-subscription --project-ref <dein-ref>
+   supabase functions deploy send-web-push --project-ref <dein-ref>
+   ```
+
+3. **Secrets setzen** – Hinterlege den privaten VAPID-Key als Supabase-Secret
+   (der öffentliche Key ist im Frontend hinterlegt):
+
+   ```bash
+   supabase secrets set VAPID_PRIVATE_KEY="<dein_privater_vapid_key>"
+   ```
+
+Sobald diese Voraussetzungen erfüllt sind, können eingeloggte Nutzer:innen über
+den neuen Hinweis in der App Pushes aktivieren. Bei folgenden Aktionen löst die
+App automatisch Push-Nachrichten aus:
+
+- Neues Event erstellt
+- Event gelöscht/abgesagt
+- Zusage/Aussage eines Teilnehmenden (geht an den Host)
+
+Alle Pushes laufen über die Supabase Edge Function `send-web-push`, die die
+gespeicherten Subscriptions lädt, `web-push` verwendet und nicht erreichbare
+Subscriptions automatisch bereinigt.
+
 ## Weiterführende Ideen
 
 - Integration einer echten Nutzer-Authentifizierung und Team-Chat-Funktion.

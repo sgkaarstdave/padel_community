@@ -8,6 +8,7 @@ import {
 } from '../state/eventRepository.js';
 import { places } from '../state/storage.js';
 import { getCurrentUser } from '../state/auth.js';
+import { notifyEventAction } from '../state/pushSubscriptions.js';
 import {
   eventsOverlap,
   getEventTimeRange,
@@ -677,6 +678,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
         updateEventById(id, () => updatedEvent);
         refreshUI();
         notifyError('');
+        notifyEventAction('event.joined', updatedEvent);
         return true;
       }
     } catch (error) {
@@ -694,6 +696,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
         updateEventById(id, () => updatedEvent);
         refreshUI();
         notifyError('');
+        notifyEventAction('event.left', updatedEvent);
         return true;
       }
     } catch (error) {
@@ -812,6 +815,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       joined: true,
       createdByMe: true,
       createdByEmail: currentUser?.email || null,
+      createdByUserId: currentUser?.userId || null,
       participants,
       history: [
         { timestamp: createdAt, type: 'create' },
@@ -827,6 +831,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       notifyError('');
       navigate('my-appointments');
       focusTitleField();
+      notifyEventAction('event.created', createdEvent);
     } catch (error) {
       console.error('Event konnte nicht erstellt werden', error);
       notifyError(error.message || 'Event konnte nicht erstellt werden.');
@@ -909,6 +914,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
         refreshUI();
         notifyError('');
         navigate('my-appointments');
+        notifyEventAction('event.cancelled', event);
       }
     } catch (error) {
       console.error('Event konnte nicht gelöscht werden', error);
