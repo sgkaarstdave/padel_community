@@ -278,6 +278,12 @@
   }
 }
 
+@media (max-width: 1024px) and (min-width: 769px) {
+  .mobile-header {
+    display: none;
+  }
+}
+
 @media (max-width: 1024px) and (min-width: 768px) {
   .sidebar__nav {
     padding: 96px 48px 40px;
