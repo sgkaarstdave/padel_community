@@ -121,30 +121,28 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const dashboardUrl = `${DEPLOY_BASE_URL}#/community-dashboard`;
   event.waitUntil(
     (async () => {
       try {
-        const data = event.notification?.data || {};
-        const targetPath = typeof data.url === 'string' ? data.url : '';
-        const targetUrl = `${DEPLOY_BASE_URL}${targetPath || ''}`;
         const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
         for (const client of allClients) {
           if (!client.url) {
             continue;
           }
           if (client.url.startsWith(DEPLOY_BASE_URL)) {
-            await client.navigate(targetUrl);
+            await client.navigate(dashboardUrl);
             await client.focus();
             return;
           }
         }
         if (self.clients.openWindow) {
-          await self.clients.openWindow(targetUrl);
+          await self.clients.openWindow(dashboardUrl);
         }
       } catch (error) {
         console.error('Failed to handle notification click', error);
         if (self.clients.openWindow) {
-          await self.clients.openWindow(DEPLOY_BASE_URL);
+          await self.clients.openWindow(dashboardUrl);
         }
       }
     })()
