@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#020617" />
     <title>Padel Community Hub</title>
+    <link rel="manifest" href="manifest.json" />
     <script
       src="https://unpkg.com/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"
       crossorigin="anonymous"
@@ -502,5 +504,15 @@
       aria-hidden="true"
     ></div>
     <script src="src/main.js" type="module"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          const swUrl = new URL('./service-worker.js', window.location.href);
+          navigator.serviceWorker
+            .register(swUrl.href)
+            .catch((err) => console.error('Service Worker registration failed', err));
+        });
+      }
+    </script>
   </body>
 </html>
