@@ -32,8 +32,11 @@ const OFFLINE_NOTICE =
 const pushUi = {
   card: null,
   description: null,
-  enableButton: null,
-  disableButton: null,
+  toggle: null,
+  toggleWrapper: null,
+  toggleLabel: null,
+  statusBadge: null,
+  hint: null,
   busy: false,
   messageOverride: null,
   state: getPushState(),
@@ -44,72 +47,41 @@ const getPushElements = () => {
   if (!pushUi.card && typeof document !== 'undefined') {
     pushUi.card = document.getElementById('pushPermissionCard');
     pushUi.description = document.getElementById('pushPermissionDescription');
-    pushUi.enableButton = document.getElementById('enablePushButton');
-    pushUi.disableButton = document.getElementById('disablePushButton');
+    pushUi.toggle = document.getElementById('pushSettingsToggle');
+    pushUi.toggleWrapper = document.getElementById('pushSettingsToggleWrapper');
+    pushUi.toggleLabel = document.getElementById('pushSettingsToggleLabel');
+    pushUi.statusBadge = document.getElementById('pushSettingsStatus');
+    pushUi.hint = document.getElementById('pushSettingsHint');
   }
   return pushUi;
 };
 
 const setPushCardBusy = (busy) => {
-  const elements = getPushElements();
   pushUi.busy = busy;
-  const permission = pushUi.state?.permission || getPushState().permission;
-  const isDenied = permission === 'denied';
-  if (elements.enableButton) {
-    elements.enableButton.disabled = busy || isDenied;
-    elements.enableButton.classList.toggle('is-loading', busy);
-  }
-  if (elements.disableButton) {
-    elements.disableButton.disabled = busy;
-    elements.disableButton.classList.toggle('is-loading', busy);
-  }
+  updateSettingsPushView();
 };
 
 const setPushCardMessage = (message, state = 'info') => {
   const elements = getPushElements();
-  if (!elements.card || !elements.description) {
+  if (!elements.card) {
     return;
   }
   pushUi.messageOverride = { message, state };
-  elements.description.textContent = message;
+  if (elements.description) {
+    elements.description.textContent = message;
+  }
   elements.card.dataset.state = state;
+  updateSettingsPushView({ message, state });
 };
 
 const clearPushCardMessageOverride = () => {
   pushUi.messageOverride = null;
 };
 
-const refreshPushPermissionCard = (options = {}) => {
-  const elements = getPushElements();
-  if (!elements.card) {
-    return;
-  }
-  if (options.resetMessage) {
-    clearPushCardMessageOverride();
-  }
-  const state = pushUi.state || getPushState();
-  const isAuthenticated = !!getCurrentUser();
-  if (!isAuthenticated || !state.isSupported) {
-    elements.card.hidden = true;
-    return;
-  }
-  elements.card.hidden = false;
+const getPushStatusMessage = (state, options = {}) => {
   const permission = state.permission;
   const isDenied = permission === 'denied';
   const isEnabled = Boolean(state.isEnabled) && !isDenied;
-
-  if (elements.enableButton) {
-    elements.enableButton.hidden = isEnabled;
-    elements.enableButton.disabled = pushUi.busy || isDenied;
-  }
-  if (elements.disableButton) {
-    elements.disableButton.hidden = !isEnabled;
-    elements.disableButton.disabled = pushUi.busy;
-  }
-
-  if (!elements.description) {
-    return;
-  }
 
   const defaultState = (() => {
     if (isDenied) {
@@ -128,18 +100,75 @@ const refreshPushPermissionCard = (options = {}) => {
     };
   })();
 
-  const statusMessage = (() => {
-    if (pushUi.messageOverride && !options.resetMessage) {
-      return pushUi.messageOverride;
-    }
-    if (state.lastError) {
-      return { state: 'error', message: state.lastError };
-    }
+  if (options.resetMessage) {
     return defaultState;
-  })();
+  }
+  if (pushUi.messageOverride && !options.resetMessage) {
+    return pushUi.messageOverride;
+  }
+  if (state.lastError) {
+    return { state: 'error', message: state.lastError };
+  }
+  return defaultState;
+};
 
-  elements.description.textContent = statusMessage.message;
+const updateSettingsPushView = (statusMessage) => {
+  const elements = getPushElements();
+  if (!elements.toggle && !elements.hint && !elements.statusBadge) {
+    return;
+  }
+  const state = pushUi.state || getPushState();
+  const permission = state.permission;
+  const isDenied = permission === 'denied';
+  const isEnabled = Boolean(state.isEnabled) && !isDenied;
+  const resolvedMessage = statusMessage || getPushStatusMessage(state);
+  const isDisabled = pushUi.busy || isDenied || !state.isSupported;
+
+  if (elements.toggle) {
+    elements.toggle.checked = isEnabled;
+    elements.toggle.disabled = isDisabled;
+    elements.toggle.setAttribute('aria-checked', isEnabled ? 'true' : 'false');
+    elements.toggle.setAttribute('aria-disabled', isDisabled ? 'true' : 'false');
+    elements.toggle.setAttribute('aria-busy', pushUi.busy ? 'true' : 'false');
+  }
+  if (elements.toggleWrapper) {
+    elements.toggleWrapper.classList.toggle('is-loading', pushUi.busy);
+    elements.toggleWrapper.classList.toggle('is-disabled', isDisabled);
+  }
+  if (elements.toggleLabel) {
+    elements.toggleLabel.textContent = pushUi.busy ? '…' : isEnabled ? 'Ein' : 'Aus';
+  }
+  if (elements.statusBadge) {
+    elements.statusBadge.textContent = isEnabled ? 'Aktiv' : 'Deaktiviert';
+    elements.statusBadge.dataset.state = isEnabled ? 'active' : 'inactive';
+  }
+  if (elements.hint && resolvedMessage?.message) {
+    elements.hint.textContent = resolvedMessage.message;
+  }
+};
+
+const refreshPushPermissionCard = (options = {}) => {
+  const elements = getPushElements();
+  if (!elements.card) {
+    return;
+  }
+  if (options.resetMessage) {
+    clearPushCardMessageOverride();
+  }
+  const state = pushUi.state || getPushState();
+  const isAuthenticated = !!getCurrentUser();
+  if (!isAuthenticated || !state.isSupported) {
+    elements.card.hidden = true;
+    updateSettingsPushView(getPushStatusMessage(state, options));
+    return;
+  }
+  elements.card.hidden = false;
+  const statusMessage = getPushStatusMessage(state, options);
+  if (elements.description) {
+    elements.description.textContent = statusMessage.message;
+  }
   elements.card.dataset.state = statusMessage.state;
+  updateSettingsPushView(statusMessage);
 };
 
 const handleEnablePush = async () => {
@@ -186,6 +215,47 @@ const handleDisablePush = async () => {
   }
 };
 
+// Toggle im Einstellungsbereich reagiert auf Nutzeraktionen.
+const handlePushToggleChange = (event) => {
+  const target = event.target;
+  const state = pushUi.state || getPushState();
+  const permission = state.permission;
+  const isDenied = permission === 'denied';
+  const isEnabled = Boolean(state.isEnabled) && !isDenied;
+  const desiredState = target.checked;
+
+  if (pushUi.busy) {
+    target.checked = isEnabled;
+    return;
+  }
+
+  if (!state.isSupported || isDenied) {
+    target.checked = isEnabled;
+    setPushCardMessage(
+      'Benachrichtigungen sind im Browser blockiert. Bitte erlaube sie zuerst.',
+      'error'
+    );
+    return;
+  }
+
+  if (desiredState === isEnabled) {
+    return;
+  }
+
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    target.checked = false;
+    setPushCardMessage('Bitte melde dich an, um Push-Benachrichtigungen zu steuern.', 'error');
+    return;
+  }
+
+  if (desiredState) {
+    handleEnablePush();
+    return;
+  }
+  handleDisablePush();
+};
+
 const setupPushPermissionCard = () => {
   const elements = getPushElements();
   if (!elements.card || elements.card.dataset.initialized === 'true') {
@@ -201,8 +271,7 @@ const setupPushPermissionCard = () => {
       refreshPushPermissionCard();
     });
   }
-  elements.enableButton?.addEventListener('click', handleEnablePush);
-  elements.disableButton?.addEventListener('click', handleDisablePush);
+  elements.toggle?.addEventListener('change', handlePushToggleChange);
   refreshPushPermissionCard();
 };
 

@@ -565,6 +565,21 @@
   .event-card {
     gap: 14px;
   }
+
+  /* Einstellungen: Toggle und Buttons auf kleinen Screens stapeln */
+  .settings-toggle {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .switch {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .settings-logout {
+    width: 100%;
+  }
 }
 
 /* <= 480px (kleine Smartphones) */
