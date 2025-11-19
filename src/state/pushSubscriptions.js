@@ -1,8 +1,48 @@
 import { createSupabaseClient } from './supabaseClient.js';
 import { getCurrentUser } from './auth.js';
 
+const SUPABASE_PROJECT_ID = 'gutesbsaqkkusbuukdyg';
+const SUPABASE_FUNCTIONS_URL = `https://${SUPABASE_PROJECT_ID}.functions.supabase.co`;
+// Edge Function Endpunkt exakt wie im Supabase Dashboard hinterlegt.
+const REGISTER_PUSH_SUBSCRIPTION_URL = `${SUPABASE_FUNCTIONS_URL}/register-push-subscription`;
+const SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1dGVzYnNhcWtrdXNidXVrZHlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0NDY1NDMsImV4cCI6MjA3OTAyMjU0M30.gkjdKY9694s7-otyd4ax_yB23G3usWLEVfMZ-dr50wo';
+
 const VAPID_PUBLIC_KEY =
   'BJNAvvUUBpijYcgnLtGHwk2lGQ9fzbRlGiZgXbg8AgyfOFLpb-PscbudWEd5JeCmskmiKpfxVtf7xqrX6ksscYg';
+
+const pushState = {
+  isEnabled: false,
+  isBusy: false,
+  lastError: null,
+};
+
+const listeners = new Set();
+
+const getApplicationBaseUrl = () => {
+  try {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      return window.location.origin;
+    }
+  } catch (error) {
+    // no-op
+  }
+  return 'https://padel.community';
+};
+
+const isPushSupported = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+};
+
+const getNotificationPermissionState = () => {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    return 'unsupported';
+  }
+  return Notification.permission;
+};
 
 const urlBase64ToUint8Array = (base64String) => {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -38,31 +78,6 @@ const bufferToBase64 = (buffer) => {
   return null;
 };
 
-const getApplicationBaseUrl = () => {
-  try {
-    if (typeof window !== 'undefined' && window.location?.origin) {
-      return window.location.origin;
-    }
-  } catch (error) {
-    // no-op
-  }
-  return 'https://padel.community';
-};
-
-const isPushSupported = () => {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
-};
-
-const getNotificationPermissionState = () => {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
-    return 'unsupported';
-  }
-  return Notification.permission;
-};
-
 const requestNotificationPermission = async () => {
   if (typeof window === 'undefined' || !('Notification' in window)) {
     return 'denied';
@@ -71,8 +86,7 @@ const requestNotificationPermission = async () => {
     return Notification.permission;
   }
   try {
-    const result = await Notification.requestPermission();
-    return result;
+    return await Notification.requestPermission();
   } catch (error) {
     console.warn('Konnte Benachrichtigungserlaubnis nicht anfragen', error);
     return 'denied';
@@ -115,39 +129,79 @@ const serializeSubscription = (subscription) => {
   };
 };
 
-const persistSubscription = async (subscription) => {
-  const serialized = serializeSubscription(subscription);
-  const session = getCurrentUser();
-  if (!session?.userId) {
-    throw new Error('Melde dich an, um Push-Benachrichtigungen zu aktivieren.');
+const getPushState = () => ({
+  ...pushState,
+  isSupported: isPushSupported(),
+  permission: getNotificationPermissionState(),
+});
+
+const emitPushState = () => {
+  const snapshot = getPushState();
+  listeners.forEach((listener) => {
+    try {
+      listener({ ...snapshot });
+    } catch (error) {
+      console.error('Push Listener Fehler', error);
+    }
+  });
+};
+
+const setPushState = (partial = {}) => {
+  Object.assign(pushState, partial);
+  emitPushState();
+};
+
+const subscribePushChanges = (listener) => {
+  listeners.add(listener);
+  listener(getPushState());
+  return () => listeners.delete(listener);
+};
+
+const getEdgeFunctionHeaders = (token) => {
+  const headers = {
+    'Content-Type': 'application/json',
+    apikey: SUPABASE_ANON_KEY,
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
   }
+  return headers;
+};
+
+// Schickt die aktuelle Subscription direkt an die Edge Function.
+const sendSubscriptionToServer = async (currentUser, subscription) => {
+  const serialized = serializeSubscription(subscription);
   if (!serialized) {
     throw new Error('Ungültige Push-Subscription.');
   }
-  const supabase = createSupabaseClient();
-  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : null;
-  await supabase.functions.invoke('register-push-subscription', {
-    body: {
-      action: 'subscribe',
-      userId: session.userId,
-      subscription: serialized,
-      userAgent,
-    },
+  if (!currentUser?.userId || !currentUser?.token) {
+    throw new Error('Bitte melde dich an, um Push-Benachrichtigungen zu aktivieren.');
+  }
+  const payload = {
+    userId: currentUser.userId,
+    subscription: serialized,
+    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+  };
+
+  const response = await fetch(REGISTER_PUSH_SUBSCRIPTION_URL, {
+    method: 'POST',
+    headers: getEdgeFunctionHeaders(currentUser.token),
+    body: JSON.stringify(payload),
+    credentials: 'omit',
   });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Push-Subscription konnte nicht registriert werden.');
+  }
+
   return serialized;
 };
 
-const subscribeToPushNotifications = async () => {
-  if (!isPushSupported()) {
-    throw new Error('Dein Browser unterstützt keine Web-Push-Benachrichtigungen.');
-  }
-  const permission = await requestNotificationPermission();
-  if (permission !== 'granted') {
-    throw new Error('Push-Benachrichtigungen wurden nicht erlaubt.');
-  }
+const createOrLoadSubscription = async () => {
   const registration = await getServiceWorkerRegistration();
   if (!registration) {
-    throw new Error('Service Worker konnte nicht gefunden werden.');
+    throw new Error('Kein aktiver Service Worker gefunden.');
   }
   let subscription = await registration.pushManager.getSubscription();
   if (!subscription) {
@@ -156,56 +210,105 @@ const subscribeToPushNotifications = async () => {
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
   }
-  await persistSubscription(subscription);
   return subscription;
 };
 
-const unsubscribeFromPushNotifications = async () => {
-  const registration = await getServiceWorkerRegistration();
-  if (!registration) {
-    return false;
+// Synchronisiert die lokale Subscription mit Supabase, sobald ein User vorhanden ist.
+const initPushForCurrentUser = async (currentUser = getCurrentUser()) => {
+  if (!currentUser) {
+    setPushState({ isEnabled: false });
+    return null;
   }
-  const subscription = await registration.pushManager.getSubscription();
-  if (!subscription) {
-    return false;
-  }
-  try {
-    const session = getCurrentUser();
-    if (session?.userId) {
-      const supabase = createSupabaseClient();
-      await supabase.functions.invoke('register-push-subscription', {
-        body: {
-          action: 'unsubscribe',
-          userId: session.userId,
-          subscription: { endpoint: subscription.endpoint },
-        },
-      });
-    }
-  } catch (error) {
-    console.warn('Konnte Push-Subscription auf dem Server nicht löschen', error);
-  }
-  const result = await subscription.unsubscribe();
-  return result;
-};
-
-const syncPushSubscription = async () => {
   if (!isPushSupported()) {
+    setPushState({ isEnabled: false });
     return null;
   }
   if (getNotificationPermissionState() !== 'granted') {
-    return null;
-  }
-  const registration = await getServiceWorkerRegistration();
-  const subscription = await registration?.pushManager?.getSubscription();
-  if (!subscription) {
+    setPushState({ isEnabled: false });
     return null;
   }
   try {
-    await persistSubscription(subscription);
+    const subscription = await createOrLoadSubscription();
+    await sendSubscriptionToServer(currentUser, subscription);
+    setPushState({ isEnabled: true, lastError: null });
+    return subscription;
   } catch (error) {
-    console.warn('Konnte Push-Subscription nicht synchronisieren', error);
+    console.error('Push-Initialisierung fehlgeschlagen', error);
+    setPushState({ isEnabled: false, lastError: error.message || 'Push konnte nicht aktiviert werden.' });
+    throw error;
   }
-  return subscription;
+};
+
+// Fordert Berechtigungen an und registriert die Subscription beim Backend.
+const enablePushNotifications = async (currentUser = getCurrentUser()) => {
+  if (!isPushSupported()) {
+    const message = 'Dein Browser unterstützt keine Web-Push-Benachrichtigungen.';
+    setPushState({ isEnabled: false, lastError: message });
+    throw new Error(message);
+  }
+  if (!currentUser) {
+    const message = 'Bitte melde dich an, um Push-Benachrichtigungen zu aktivieren.';
+    setPushState({ isEnabled: false, lastError: message });
+    throw new Error(message);
+  }
+
+  setPushState({ isBusy: true, lastError: null });
+  try {
+    const permission = await requestNotificationPermission();
+    if (permission !== 'granted') {
+      const message = 'Benachrichtigungen im Browser nicht erlaubt.';
+      setPushState({ isEnabled: false, lastError: message });
+      throw new Error(message);
+    }
+    await initPushForCurrentUser(currentUser);
+    return true;
+  } catch (error) {
+    console.error('Push-Benachrichtigungen konnten nicht aktiviert werden', error);
+    if (!pushState.lastError) {
+      setPushState({ lastError: error.message || 'Push konnte nicht aktiviert werden.' });
+    }
+    throw error;
+  } finally {
+    setPushState({ isBusy: false });
+  }
+};
+
+// Entfernt aktive Subscriptions lokal und bereinigt optional den Supabase-Eintrag.
+const disablePushNotifications = async (currentUser = getCurrentUser()) => {
+  if (!isPushSupported()) {
+    setPushState({ isEnabled: false });
+    return false;
+  }
+  setPushState({ isBusy: true, lastError: null });
+  try {
+    const registration = await getServiceWorkerRegistration();
+    const subscription = await registration?.pushManager?.getSubscription();
+    if (subscription) {
+      await subscription.unsubscribe();
+    }
+    if (currentUser?.userId) {
+      try {
+        const supabase = createSupabaseClient();
+        const { error } = await supabase
+          .from('web_push_subscriptions')
+          .delete()
+          .eq('user_id', currentUser.userId);
+        if (error) {
+          throw error;
+        }
+      } catch (error) {
+        console.warn('Konnte gespeicherte Push-Subscription nicht löschen', error);
+      }
+    }
+    setPushState({ isEnabled: false, lastError: null });
+    return true;
+  } catch (error) {
+    console.error('Push-Benachrichtigungen konnten nicht deaktiviert werden', error);
+    setPushState({ isEnabled: false, lastError: error.message || 'Push konnte nicht deaktiviert werden.' });
+    throw error;
+  } finally {
+    setPushState({ isBusy: false });
+  }
 };
 
 const notifyEventAction = async (type, event) => {
@@ -249,10 +352,12 @@ const notifyEventAction = async (type, event) => {
 
 export {
   VAPID_PUBLIC_KEY,
+  getPushState,
   isPushSupported,
   getNotificationPermissionState,
-  subscribeToPushNotifications,
-  unsubscribeFromPushNotifications,
-  syncPushSubscription,
+  initPushForCurrentUser,
+  enablePushNotifications,
+  disablePushNotifications,
+  subscribePushChanges,
   notifyEventAction,
 };
