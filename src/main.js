@@ -19,11 +19,11 @@ import { places } from './state/storage.js';
 import { pruneExpiredEvents, setEvents } from './state/store.js';
 import { fetchAllEvents } from './state/eventRepository.js';
 import {
-  getNotificationPermissionState,
-  isPushSupported,
-  subscribeToPushNotifications,
-  unsubscribeFromPushNotifications,
-  syncPushSubscription,
+  getPushState,
+  subscribePushChanges,
+  enablePushNotifications,
+  disablePushNotifications,
+  initPushForCurrentUser,
 } from './state/pushSubscriptions.js';
 
 const OFFLINE_NOTICE =
@@ -36,6 +36,8 @@ const pushUi = {
   disableButton: null,
   busy: false,
   messageOverride: null,
+  state: getPushState(),
+  unsubscribe: null,
 };
 
 const getPushElements = () => {
@@ -51,16 +53,16 @@ const getPushElements = () => {
 const setPushCardBusy = (busy) => {
   const elements = getPushElements();
   pushUi.busy = busy;
-  [elements.enableButton, elements.disableButton].forEach((button) => {
-    if (!button) {
-      return;
-    }
-    const isEnableButton = button === elements.enableButton;
-    const permission = getNotificationPermissionState();
-    const isDenied = permission === 'denied';
-    button.disabled = busy || (isEnableButton && isDenied);
-    button.classList.toggle('is-loading', busy);
-  });
+  const permission = pushUi.state?.permission || getPushState().permission;
+  const isDenied = permission === 'denied';
+  if (elements.enableButton) {
+    elements.enableButton.disabled = busy || isDenied;
+    elements.enableButton.classList.toggle('is-loading', busy);
+  }
+  if (elements.disableButton) {
+    elements.disableButton.disabled = busy;
+    elements.disableButton.classList.toggle('is-loading', busy);
+  }
 };
 
 const setPushCardMessage = (message, state = 'info') => {
@@ -85,30 +87,35 @@ const refreshPushPermissionCard = (options = {}) => {
   if (options.resetMessage) {
     clearPushCardMessageOverride();
   }
+  const state = pushUi.state || getPushState();
   const isAuthenticated = !!getCurrentUser();
-  if (!isAuthenticated || !isPushSupported()) {
+  if (!isAuthenticated || !state.isSupported) {
     elements.card.hidden = true;
     return;
   }
   elements.card.hidden = false;
-  const permission = getNotificationPermissionState();
-  const isGranted = permission === 'granted';
+  const permission = state.permission;
   const isDenied = permission === 'denied';
+  const isEnabled = Boolean(state.isEnabled) && !isDenied;
 
   if (elements.enableButton) {
-    elements.enableButton.hidden = isGranted;
+    elements.enableButton.hidden = isEnabled;
     elements.enableButton.disabled = pushUi.busy || isDenied;
   }
   if (elements.disableButton) {
-    elements.disableButton.hidden = !isGranted;
+    elements.disableButton.hidden = !isEnabled;
     elements.disableButton.disabled = pushUi.busy;
+  }
+
+  if (!elements.description) {
+    return;
   }
 
   const defaultState = (() => {
     if (isDenied) {
-      return { state: 'error', message: 'Push-Benachrichtigungen sind im Browser blockiert. Bitte erlaube sie in den Einstellungen.' };
+      return { state: 'error', message: 'Benachrichtigungen im Browser nicht erlaubt.' };
     }
-    if (isGranted) {
+    if (isEnabled) {
       return {
         state: 'success',
         message:
@@ -117,31 +124,36 @@ const refreshPushPermissionCard = (options = {}) => {
     }
     return {
       state: 'info',
-      message: 'Erhalte sofort Hinweise zu neuen Sessions oder Zusagen – auch wenn die App geschlossen ist.',
+      message: 'Push-Benachrichtigungen sind deaktiviert. Aktiviere sie, um keine Sessions zu verpassen.',
     };
   })();
 
-  if (!elements.description) {
-    return;
-  }
+  const statusMessage = (() => {
+    if (pushUi.messageOverride && !options.resetMessage) {
+      return pushUi.messageOverride;
+    }
+    if (state.lastError) {
+      return { state: 'error', message: state.lastError };
+    }
+    return defaultState;
+  })();
 
-  if (pushUi.messageOverride && !options.resetMessage) {
-    elements.description.textContent = pushUi.messageOverride.message;
-    elements.card.dataset.state = pushUi.messageOverride.state;
-    return;
-  }
-
-  elements.description.textContent = defaultState.message;
-  elements.card.dataset.state = defaultState.state;
+  elements.description.textContent = statusMessage.message;
+  elements.card.dataset.state = statusMessage.state;
 };
 
 const handleEnablePush = async () => {
   if (pushUi.busy) {
     return;
   }
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    setPushCardMessage('Bitte melde dich an, um Push-Benachrichtigungen zu aktivieren.', 'error');
+    return;
+  }
   setPushCardBusy(true);
   try {
-    await subscribeToPushNotifications();
+    await enablePushNotifications(currentUser);
     clearPushCardMessageOverride();
   } catch (error) {
     setPushCardMessage(
@@ -158,9 +170,10 @@ const handleDisablePush = async () => {
   if (pushUi.busy) {
     return;
   }
+  const currentUser = getCurrentUser();
   setPushCardBusy(true);
   try {
-    await unsubscribeFromPushNotifications();
+    await disablePushNotifications(currentUser);
     clearPushCardMessageOverride();
   } catch (error) {
     setPushCardMessage(
@@ -180,6 +193,14 @@ const setupPushPermissionCard = () => {
   }
   elements.card.dataset.initialized = 'true';
   elements.card.hidden = true;
+  // Push-Status aus dem State-Modul abonnieren, damit das Dashboard live reagiert.
+  pushUi.state = getPushState();
+  if (!pushUi.unsubscribe) {
+    pushUi.unsubscribe = subscribePushChanges((state) => {
+      pushUi.state = state;
+      refreshPushPermissionCard();
+    });
+  }
   elements.enableButton?.addEventListener('click', handleEnablePush);
   elements.disableButton?.addEventListener('click', handleDisablePush);
   refreshPushPermissionCard();
@@ -329,12 +350,13 @@ const bootstrapApplication = async () => {
 document.addEventListener('DOMContentLoaded', () => {
   setupPushPermissionCard();
   initializeAuth({
-    onAuthenticated: () => {
+    onAuthenticated: (session) => {
       bootstrapApplication().catch((error) => {
         console.error('Fehler beim Starten der Anwendung', error);
         setDataError('Die Anwendung konnte nicht vollständig geladen werden.');
       });
-      syncPushSubscription()
+      // Nach erfolgreichem Login direkt versuchen, die bestehende Subscription zu registrieren.
+      initPushForCurrentUser(session)
         .catch((error) => {
           console.warn('Push-Subscription konnte nicht synchronisiert werden', error);
         })
@@ -343,6 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     },
     onLogout: () => {
+      pushUi.state = getPushState();
       refreshPushPermissionCard({ resetMessage: true });
     },
   });
