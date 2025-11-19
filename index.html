@@ -231,6 +231,21 @@
         </header>
         <div id="dataError" class="alert alert--warning global-error" role="alert" hidden></div>
 
+        <div id="pushPermissionCard" class="push-permission" hidden>
+          <div class="push-permission__content">
+            <p class="push-permission__title">Push-Benachrichtigungen</p>
+            <p id="pushPermissionDescription" class="muted">
+              Erhalte sofortige Hinweise zu neuen Sessions oder Zu-/Absagen – direkt auf dein Gerät.
+            </p>
+          </div>
+          <div class="push-permission__actions">
+            <button type="button" class="primary" id="enablePushButton">Aktivieren</button>
+            <button type="button" class="button button--ghost" id="disablePushButton" hidden>
+              Deaktivieren
+            </button>
+          </div>
+        </div>
+
         <section id="dashboard-view" class="view view--dashboard">
           <div class="stats-grid">
             <article class="stat-card">

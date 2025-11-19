@@ -1,0 +1,16 @@
+-- Schema definition for web push subscriptions used by the Padel Community SPA.
+-- The table lives in the "public" schema and is managed manually via the Supabase UI.
+--
+-- CREATE TABLE public.web_push_subscriptions (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   user_id uuid NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
+--   endpoint text NOT NULL,
+--   p256dh text NOT NULL,
+--   auth text NOT NULL,
+--   user_agent text NULL,
+--   created_at timestamptz NOT NULL DEFAULT now()
+-- );
+--
+-- Suggested indexes/constraints:
+--   * UNIQUE (endpoint) to avoid duplicates per browser instance.
+--   * UNIQUE (user_id, endpoint) if multiple devices per user should be deduplicated.

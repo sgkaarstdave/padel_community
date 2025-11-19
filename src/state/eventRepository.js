@@ -235,6 +235,7 @@ const decodeMetadata = (row) => {
     ownerName: metadata.ownerName || '',
     createdAt: metadata.createdAt || row.created_at || new Date().toISOString(),
     city: metadata.city || '',
+    ownerId: metadata.ownerId || metadata.createdByUserId || null,
   };
 };
 
@@ -290,6 +291,7 @@ const mapRowToEvent = (row, session) => {
     joined,
     createdByMe: !!createdByEmail && createdByEmail === currentEmail,
     createdByEmail,
+    createdByUserId: metadata.ownerId || metadata.createdByUserId || null,
     history: metadata.history,
     participants,
     duration: durationHours,
@@ -317,6 +319,7 @@ const buildMetadataPayload = (event) => {
     ownerName: event.owner || '',
     createdAt: event.createdAt || new Date().toISOString(),
     city: event.city || '',
+    ownerId: event.createdByUserId || event.ownerId || null,
   };
 };
 

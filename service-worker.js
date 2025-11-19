@@ -14,6 +14,38 @@ const APP_SHELL_ASSETS = [
   'assets/icons/icon-512.svg',
 ].map(toAbsoluteUrl);
 const OFFLINE_FALLBACK = toAbsoluteUrl('index.html');
+const DEFAULT_ICON = toAbsoluteUrl('assets/icons/icon-192.svg');
+
+const parsePushPayload = (event) => {
+  if (!event.data) {
+    return {};
+  }
+  try {
+    return event.data.json();
+  } catch (error) {
+    try {
+      return { body: event.data.text() };
+    } catch (_err) {
+      return {};
+    }
+  }
+};
+
+const focusOrOpenClient = async (targetUrl) => {
+  const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  for (const client of allClients) {
+    if (!client.url) {
+      continue;
+    }
+    if (client.url === targetUrl || client.url === `${targetUrl}/`) {
+      await client.focus();
+      return;
+    }
+  }
+  if (self.clients.openWindow) {
+    await self.clients.openWindow(targetUrl);
+  }
+};
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -70,4 +102,24 @@ self.addEventListener('fetch', (event) => {
         });
       })
   );
+});
+
+self.addEventListener('push', (event) => {
+  const payload = parsePushPayload(event);
+  const title = payload.title || 'Padel Community';
+  const options = {
+    body: payload.body || 'Neue Aktivität in der Padel Community.',
+    icon: payload.icon || DEFAULT_ICON,
+    badge: payload.badge || DEFAULT_ICON,
+    data: payload.data || {},
+    tag: payload.tag || undefined,
+    actions: payload.actions || undefined,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification?.data?.url || BASE_URL.toString();
+  event.waitUntil(focusOrOpenClient(targetUrl));
 });
