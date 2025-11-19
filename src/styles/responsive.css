@@ -766,7 +766,12 @@
   }
 
   .stats-grid.dashboard-section {
-    gap: 16px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin: 6px 0 28px;
+    gap: 18px;
   }
 
   .view--dashboard .stat-card {
