@@ -1,6 +1,7 @@
 const CACHE_VERSION = 'v1';
 const CACHE_NAME = `padel-community-cache-${CACHE_VERSION}`;
 const BASE_URL = new URL('./', self.location);
+const DEPLOY_BASE_URL = 'https://sgkaarstdave.github.io/padel_community/';
 const toAbsoluteUrl = (path) => new URL(path, BASE_URL).toString();
 const APP_SHELL_ASSETS = [
   'index.html',
@@ -120,6 +121,32 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification?.data?.url || BASE_URL.toString();
-  event.waitUntil(focusOrOpenClient(targetUrl));
+  event.waitUntil(
+    (async () => {
+      try {
+        const data = event.notification?.data || {};
+        const targetPath = typeof data.url === 'string' ? data.url : '';
+        const targetUrl = `${DEPLOY_BASE_URL}${targetPath || ''}`;
+        const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        for (const client of allClients) {
+          if (!client.url) {
+            continue;
+          }
+          if (client.url.startsWith(DEPLOY_BASE_URL)) {
+            await client.navigate(targetUrl);
+            await client.focus();
+            return;
+          }
+        }
+        if (self.clients.openWindow) {
+          await self.clients.openWindow(targetUrl);
+        }
+      } catch (error) {
+        console.error('Failed to handle notification click', error);
+        if (self.clients.openWindow) {
+          await self.clients.openWindow(DEPLOY_BASE_URL);
+        }
+      }
+    })()
+  );
 });
