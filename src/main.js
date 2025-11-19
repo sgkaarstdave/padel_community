@@ -18,6 +18,9 @@ import { places } from './state/storage.js';
 import { pruneExpiredEvents, setEvents } from './state/store.js';
 import { fetchAllEvents } from './state/eventRepository.js';
 
+const OFFLINE_NOTICE =
+  'Server gerade nicht erreichbar. Bitte prüfe deine Verbindung oder versuche es später erneut.';
+
 const setupLocationSelector = () => {
   const select = document.getElementById('locationSelect');
   if (!select) {
@@ -112,7 +115,11 @@ const loadEventsFromBackend = async () => {
     refreshUI();
   } catch (error) {
     console.error('Konnte Events nicht laden', error);
-    setDataError('Events konnten nicht geladen werden. Bitte versuche es später erneut.');
+    if (error?.isOffline) {
+      setDataError(error.message || OFFLINE_NOTICE);
+      return;
+    }
+    setDataError(error?.message || 'Events konnten nicht geladen werden. Bitte versuche es später erneut.');
   }
 };
 

@@ -4,6 +4,43 @@ import { getCurrentUser } from './auth.js';
 const TABLE_NAME = 'events';
 const METADATA_VERSION = 1;
 const MAX_HISTORY_ENTRIES = 40;
+const OFFLINE_MESSAGE =
+  'Server gerade nicht erreichbar. Bitte prüfe deine Verbindung oder versuche es später erneut.';
+
+const isNavigatorOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+
+const isLikelyNetworkError = (error) => {
+  if (!error) {
+    return false;
+  }
+  if (typeof error.status === 'number' && error.status === 0) {
+    return true;
+  }
+  const message = String(error.message || error.error_description || '')
+    .toLowerCase()
+    .trim();
+  if (!message) {
+    return false;
+  }
+  return (
+    message.includes('network') ||
+    message.includes('fetch') ||
+    message.includes('offline') ||
+    message.includes('timeout')
+  );
+};
+
+const mapSupabaseError = (error, fallbackMessage) => {
+  if (isNavigatorOffline() || isLikelyNetworkError(error)) {
+    const offlineError = new Error(OFFLINE_MESSAGE);
+    offlineError.isOffline = true;
+    offlineError.cause = error;
+    return offlineError;
+  }
+  const normalized = new Error(error?.message || fallbackMessage || 'Unbekannter Fehler.');
+  normalized.cause = error;
+  return normalized;
+};
 
 const parseTimeParts = (timeValue) => {
   if (!timeValue) {
@@ -336,7 +373,7 @@ const persistEvent = async (event, action) => {
   }
   const { data, error } = await query.select('*').single();
   if (error) {
-    throw new Error(error.message || 'Die Events konnten nicht gespeichert werden.');
+    throw mapSupabaseError(error, 'Die Events konnten nicht gespeichert werden.');
   }
   return mapRowToEvent(data, session);
 };
@@ -346,7 +383,7 @@ const fetchEventRow = async (eventId) => {
   const session = getCurrentUser();
   const { data, error } = await supabase.from(TABLE_NAME).select('*').eq('id', eventId).single();
   if (error) {
-    throw new Error(error.message || 'Event konnte nicht gefunden werden.');
+    throw mapSupabaseError(error, 'Event konnte nicht gefunden werden.');
   }
   return mapRowToEvent(data, session);
 };
@@ -360,7 +397,7 @@ const fetchAllEvents = async () => {
     .order('date', { ascending: true })
     .order('start_time', { ascending: true });
   if (error) {
-    throw new Error(error.message || 'Events konnten nicht geladen werden.');
+    throw mapSupabaseError(error, 'Events konnten nicht geladen werden.');
   }
   const events = (data || []).map((row) => mapRowToEvent(row, session));
   const toTimestamp = (event) => {
@@ -393,7 +430,7 @@ const deleteEvent = async (eventId) => {
   const supabase = createSupabaseClient();
   const { error } = await supabase.from(TABLE_NAME).delete().eq('id', eventId);
   if (error) {
-    throw new Error(error.message || 'Event konnte nicht gelöscht werden.');
+    throw mapSupabaseError(error, 'Event konnte nicht gelöscht werden.');
   }
   return true;
 };
