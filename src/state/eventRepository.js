@@ -2,6 +2,8 @@ import { createSupabaseClient } from './supabaseClient.js';
 import { getCurrentUser } from './auth.js';
 
 const TABLE_NAME = 'events';
+const GUESTS_TABLE = 'event_guests';
+const SELECT_COLUMNS = '*, event_guests ( id, name, created_at, event_id )';
 const METADATA_VERSION = 1;
 const MAX_HISTORY_ENTRIES = 40;
 const OFFLINE_MESSAGE =
@@ -200,6 +202,26 @@ const sanitizeParticipants = (participants) => {
   return normalized;
 };
 
+const normalizeGuests = (guests) => {
+  if (!Array.isArray(guests)) {
+    return [];
+  }
+  const trimmed = guests
+    .map((guest) => ({
+      id: guest?.id || null,
+      name: String(guest?.name || '').trim(),
+    }))
+    .filter((guest) => guest.name);
+  const seen = new Set();
+  return trimmed.filter((guest) => {
+    if (seen.has(guest.name.toLowerCase())) {
+      return false;
+    }
+    seen.add(guest.name.toLowerCase());
+    return true;
+  });
+};
+
 const deriveOwnerName = (row, metadata, session) => {
   const createdByEmail = row.created_by_email?.toLowerCase() || null;
   if (createdByEmail && session?.email && session.email.toLowerCase() === createdByEmail) {
@@ -242,14 +264,27 @@ const decodeMetadata = (row) => {
 const mapRowToEvent = (row, session) => {
   const metadata = decodeMetadata(row);
   const participants = metadata.participants || [];
+  const guests = Array.isArray(row.event_guests)
+    ? row.event_guests.map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        createdAt: entry.created_at || entry.createdAt || null,
+      }))
+    : [];
+  const guestCount = guests.length;
   const currentEmail = session?.email?.toLowerCase() || null;
   const createdByEmail = row.created_by_email?.toLowerCase() || null;
   const joined = !!currentEmail && participants.some((entry) => entry.email === currentEmail);
+  const participantCount = participants.length;
   const capacity = Math.max(
-    Number(row.slots_total ?? participants.length) || 0,
-    participants.length
+    Number(row.slots_total ?? participantCount + guestCount) || 0,
+    participantCount + guestCount
   );
-  const attendees = Math.min(capacity, Number(row.slots_taken ?? participants.length) || 0);
+  const attendeesFromRow = Number(row.slots_taken ?? participantCount + guestCount) || 0;
+  const attendees = Math.min(
+    capacity,
+    Math.max(attendeesFromRow, participantCount + guestCount)
+  );
   const startTime = normalizeTimeValue(row.start_time) || null;
   const endTime = normalizeTimeValue(row.end_time) || null;
   const durationFromColumn = Number(row.duration_hours);
@@ -294,6 +329,9 @@ const mapRowToEvent = (row, session) => {
     createdByUserId: metadata.ownerId || metadata.createdByUserId || null,
     history: metadata.history,
     participants,
+    guests,
+    guestCount,
+    courtBooked: !!row.court_booked,
     duration: durationHours,
     paymentLink: paypalLink,
     deadline: rsvpDeadline,
@@ -326,15 +364,19 @@ const buildMetadataPayload = (event) => {
 const buildRowPayload = (event) => {
   const startTime = normalizeTimeValue(event.time) || '00:00:00';
   const normalizedDurationHours = normalizeDurationHours(event.durationHours ?? event.duration);
+  const guests = normalizeGuests(event.guests || []);
+  const guestCount = guests.length;
+  const participantCount = (event.participants || []).length;
+  const attendeesWithGuests = Math.max(
+    Number(event.attendees) || 0,
+    participantCount + guestCount
+  );
   const capacity = Math.max(
     Number(event.capacity) || 0,
-    Number(event.attendees) || 0,
-    (event.participants || []).length
+    attendeesWithGuests,
+    participantCount + guestCount
   );
-  const attendees = Math.min(
-    capacity,
-    Number(event.attendees) || (event.participants || []).length || 0
-  );
+  const attendees = Math.min(capacity, attendeesWithGuests);
   const payload = {
     title: event.title,
     date: event.date,
@@ -345,6 +387,7 @@ const buildRowPayload = (event) => {
     skill_level: event.skill || 'Intermediate',
     slots_total: capacity,
     slots_taken: attendees,
+    court_booked: !!event.courtBooked,
     total_cost: normalizeCurrency(event.totalCost),
     notes: typeof event.notes === 'string' ? event.notes : '',
     paypal_link:
@@ -353,7 +396,9 @@ const buildRowPayload = (event) => {
         : '',
     duration_hours: normalizedDurationHours,
     rsvp_deadline: normalizeTimestamp(event.rsvpDeadline ?? event.deadline),
-    description: JSON.stringify(buildMetadataPayload({ ...event, capacity, attendees })),
+    description: JSON.stringify(
+      buildMetadataPayload({ ...event, capacity, attendees, guests, guestCount })
+    ),
   };
   if (event.id) {
     payload.id = event.id;
@@ -362,6 +407,66 @@ const buildRowPayload = (event) => {
     payload.created_by_email = event.createdByEmail.toLowerCase();
   }
   return payload;
+};
+
+const fetchGuestList = async (eventId) => {
+  const supabase = createSupabaseClient();
+  const { data, error } = await supabase
+    .from(GUESTS_TABLE)
+    .select('id, name, created_at')
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: true });
+  if (error) {
+    throw mapSupabaseError(error, 'Gäste konnten nicht geladen werden.');
+  }
+  return data || [];
+};
+
+const syncGuestsForEvent = async (eventId, guests) => {
+  const supabase = createSupabaseClient();
+  const normalizedGuests = normalizeGuests(guests);
+  const { data: existingGuests, error: existingError } = await supabase
+    .from(GUESTS_TABLE)
+    .select('id')
+    .eq('event_id', eventId);
+  if (existingError) {
+    throw mapSupabaseError(existingError, 'Gäste konnten nicht synchronisiert werden.');
+  }
+  const existingIds = new Set((existingGuests || []).map((guest) => guest.id));
+  const incomingIds = new Set(normalizedGuests.map((guest) => guest.id).filter(Boolean));
+  const idsToDelete = [...existingIds].filter((id) => !incomingIds.has(id));
+
+  if (idsToDelete.length) {
+    const { error: deleteError } = await supabase
+      .from(GUESTS_TABLE)
+      .delete()
+      .in('id', idsToDelete);
+    if (deleteError) {
+      throw mapSupabaseError(deleteError, 'Gäste konnten nicht gelöscht werden.');
+    }
+  }
+
+  if (!normalizedGuests.length) {
+    return [];
+  }
+
+  const payload = normalizedGuests.map((guest) => ({
+    id: guest.id || undefined,
+    event_id: eventId,
+    name: guest.name,
+  }));
+
+  const { data, error } = await supabase
+    .from(GUESTS_TABLE)
+    .upsert(payload, { onConflict: 'id' })
+    .select('id, name, event_id, created_at')
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw mapSupabaseError(error, 'Gäste konnten nicht gespeichert werden.');
+  }
+
+  return data || [];
 };
 
 const persistEvent = async (event, action) => {
@@ -374,17 +479,27 @@ const persistEvent = async (event, action) => {
   } else {
     query = query.update(payload).eq('id', event.id);
   }
-  const { data, error } = await query.select('*').single();
+  const { data, error } = await query.select(SELECT_COLUMNS).single();
   if (error) {
     throw mapSupabaseError(error, 'Die Events konnten nicht gespeichert werden.');
   }
-  return mapRowToEvent(data, session);
+  let guests = data.event_guests || [];
+  if (Array.isArray(event.guests)) {
+    guests = await syncGuestsForEvent(data.id, event.guests);
+  } else if (!guests.length) {
+    guests = await fetchGuestList(data.id);
+  }
+  return mapRowToEvent({ ...data, event_guests: guests }, session);
 };
 
 const fetchEventRow = async (eventId) => {
   const supabase = createSupabaseClient();
   const session = getCurrentUser();
-  const { data, error } = await supabase.from(TABLE_NAME).select('*').eq('id', eventId).single();
+  const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .select(SELECT_COLUMNS)
+    .eq('id', eventId)
+    .single();
   if (error) {
     throw mapSupabaseError(error, 'Event konnte nicht gefunden werden.');
   }
@@ -396,7 +511,7 @@ const fetchAllEvents = async () => {
   const session = getCurrentUser();
   const { data, error } = await supabase
     .from(TABLE_NAME)
-    .select('*')
+    .select(SELECT_COLUMNS)
     .order('date', { ascending: true })
     .order('start_time', { ascending: true });
   if (error) {
@@ -464,9 +579,10 @@ const incrementSlotsTaken = async (eventId) => {
     { timestamp: new Date().toISOString(), type: 'join' },
     ...(event.history || []),
   ].slice(0, MAX_HISTORY_ENTRIES);
+  const guestCount = Array.isArray(event.guests) ? event.guests.length : Number(event.guestCount) || 0;
   const updatedEvent = {
     ...event,
-    attendees: Math.min(capacity, participants.length),
+    attendees: Math.min(capacity, participants.length + guestCount),
     participants,
     history,
     joined: true,
@@ -490,9 +606,10 @@ const decrementSlotsTaken = async (eventId) => {
     { timestamp: new Date().toISOString(), type: 'leave' },
     ...(event.history || []),
   ].slice(0, MAX_HISTORY_ENTRIES);
+  const guestCount = Array.isArray(event.guests) ? event.guests.length : Number(event.guestCount) || 0;
   const updatedEvent = {
     ...event,
-    attendees: Math.max(0, participants.length),
+    attendees: Math.max(0, Math.min(event.capacity || participants.length, participants.length + guestCount)),
     participants,
     history,
     joined: false,

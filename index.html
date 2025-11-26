@@ -436,6 +436,17 @@
                 >
                 <input type="number" name="capacity" min="2" max="8" value="4" required />
               </label>
+              <label class="full checkbox-card">
+                <div class="checkbox-card__row">
+                  <input type="checkbox" name="courtBooked" />
+                  <div class="checkbox-card__text">
+                    <span class="label-text">Platz gebucht</span>
+                    <small class="muted"
+                      >Aktiviere diese Option, wenn der Court bereits reserviert ist.</small
+                    >
+                  </div>
+                </div>
+              </label>
               <label>
                 Skill Level
                 <select name="skill">
@@ -487,6 +498,22 @@
                   placeholder="Bringe eigene Schläger mit, wir haben neue Bälle vor Ort."
                 ></textarea>
               </label>
+            </div>
+
+            <div class="form__section">
+              <div class="form__section-header">
+                <div>
+                  <h4>Gäste ohne App</h4>
+                  <p class="muted small">
+                    Trage Gäste ein, die keinen Account haben. Diese Plätze gelten als belegt.
+                  </p>
+                </div>
+                <small class="muted">Max. 6 Gäste</small>
+              </div>
+              <div class="guest-list" data-guest-list></div>
+              <button type="button" class="button button--ghost" data-add-guest>
+                + Gast hinzufügen
+              </button>
             </div>
 
             <div class="form__actions">
