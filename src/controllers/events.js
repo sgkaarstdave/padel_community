@@ -841,12 +841,25 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
         : 0;
       const guestCount = Array.isArray(normalized.guests) ? normalized.guests.length : 0;
       const occupied = Math.max(participantCount + guestCount, 0);
-      const capacity = Math.max(occupied, normalized.capacity);
+
+      if (normalized.capacity < participantCount) {
+        window.alert('Die Teilnehmeranzahl darf nicht kleiner als die bestehenden Zusagen sein.');
+        return;
+      }
+
+      if (occupied > normalized.capacity) {
+        window.alert(
+          'Du kannst keine weiteren Gäste hinzufügen. Bitte erhöhe zuerst die Teilnehmeranzahl.',
+        );
+        return;
+      }
+
+      const capacity = normalized.capacity;
       const payload = {
         ...existingEvent,
         ...normalized,
         capacity,
-        attendees: Math.min(capacity, occupied),
+        attendees: occupied,
         history: [{ timestamp: now.toISOString(), type: 'update' }, ...history],
       };
       try {
@@ -879,7 +892,15 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       : [];
     const guestCount = Array.isArray(normalized.guests) ? normalized.guests.length : 0;
     const attendees = Math.max(1, participants.length + guestCount);
-    const capacity = Math.max(normalized.capacity, attendees);
+
+    if (normalized.capacity < attendees) {
+      window.alert(
+        'Die Teilnehmeranzahl reicht nicht aus, um alle Gäste einzuladen. Bitte erhöhe sie.',
+      );
+      return;
+    }
+
+    const capacity = normalized.capacity;
 
     const draft = {
       ...normalized,
