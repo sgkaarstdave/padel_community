@@ -251,7 +251,7 @@ main {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   width: 100%;
 }
 
@@ -260,11 +260,102 @@ main {
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  flex: 1;
 }
 
 .topbar h2 {
   font-size: clamp(1.3rem, 1.1rem + 1vw, 1.75rem);
   font-weight: 700;
+}
+
+.topbar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.topbar__refresh-btn {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.6);
+  color: var(--text);
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.topbar__refresh-btn:hover,
+.topbar__refresh-btn:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  border-color: rgba(148, 163, 184, 0.55);
+  background: rgba(15, 23, 42, 0.75);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
+}
+
+.topbar__refresh-btn.is-loading {
+  cursor: progress;
+}
+
+.last-updated {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  flex-wrap: wrap;
+}
+
+.last-updated__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.55);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 6px 10px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.last-updated__action:hover,
+.last-updated__action:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  border-color: rgba(148, 163, 184, 0.55);
+  background: rgba(15, 23, 42, 0.7);
+  box-shadow: 0 8px 26px rgba(15, 23, 42, 0.28);
+}
+
+.refresh-icon {
+  width: 22px;
+  height: 22px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.last-updated__action .refresh-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.topbar__refresh-btn.is-loading .refresh-icon,
+.refresh-icon.is-spinning {
+  animation: spin 0.9s linear infinite;
+  opacity: 0.85;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .user-menu {

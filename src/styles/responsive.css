@@ -205,11 +205,22 @@
 
   .topbar {
     align-items: flex-start;
+    gap: 12px;
   }
 
   .topbar__intro,
   .user-menu {
     flex: 1 1 100%;
+  }
+
+  .topbar__actions {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .last-updated {
+    font-size: 0.9rem;
   }
 
   .user-menu {

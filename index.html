@@ -216,14 +216,84 @@
               Verwalte deine erstellten Matches, passe Details an und behalte
               alle Zusagen im Blick.
             </p>
-          </div>
-          <div class="user-menu" id="userMenu" hidden>
-            <div class="user-menu__avatar" id="userAvatar" aria-hidden="true">
-              👤
+            <div class="last-updated muted" id="lastUpdatedRow" hidden>
+              <span id="lastUpdatedLabel">Zuletzt aktualisiert: –</span>
+              <button
+                type="button"
+                class="last-updated__action"
+                data-action="refresh-dashboard"
+                data-refresh-button
+                aria-label="Aktualisieren"
+              >
+                <svg
+                  class="refresh-icon"
+                  data-refresh-icon
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M21 12c0-4.971-4.029-9-9-9-3.636 0-6.78 2.167-8.192 5.278M3 4v4.5h4.5"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M3 12c0 4.971 4.029 9 9 9 3.636 0 6.78-2.167 8.192-5.278M21 20v-4.5h-4.5"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>Aktualisieren</span>
+              </button>
             </div>
-            <div class="user-menu__details">
-              <span id="userDisplayName"></span>
-              <span id="userEmail" class="muted"></span>
+          </div>
+          <div class="topbar__actions">
+            <button
+              type="button"
+              class="topbar__refresh-btn"
+              id="refreshDashboardButton"
+              data-action="refresh-dashboard"
+              data-refresh-button
+              data-lock-during-refresh="true"
+              aria-label="Aktualisieren"
+            >
+              <svg
+                class="refresh-icon"
+                data-refresh-icon
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M21 12c0-4.971-4.029-9-9-9-3.636 0-6.78 2.167-8.192 5.278M3 4v4.5h4.5"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M3 12c0 4.971 4.029 9 9 9 3.636 0 6.78-2.167 8.192-5.278M21 20v-4.5h-4.5"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <div class="user-menu" id="userMenu" hidden>
+              <div class="user-menu__avatar" id="userAvatar" aria-hidden="true">
+                👤
+              </div>
+              <div class="user-menu__details">
+                <span id="userDisplayName"></span>
+                <span id="userEmail" class="muted"></span>
+              </div>
             </div>
           </div>
         </header>

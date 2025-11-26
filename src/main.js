@@ -360,6 +360,72 @@ const setDataError = (message) => {
 
 let hasBootstrapped = false;
 let formListenerAttached = false;
+let lastUpdated = null;
+let isRefreshingDashboard = false;
+
+const formatLastUpdated = (value) => {
+  if (!value) {
+    return '–';
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '–';
+  }
+  return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+};
+
+const updateLastUpdatedDisplay = () => {
+  const label = document.getElementById('lastUpdatedLabel');
+  if (!label) {
+    return;
+  }
+  label.textContent = `Zuletzt aktualisiert: ${formatLastUpdated(lastUpdated)}`;
+};
+
+const setLastUpdated = (value) => {
+  lastUpdated = value instanceof Date ? value : value ? new Date(value) : null;
+  updateLastUpdatedDisplay();
+};
+
+const setRefreshingState = (refreshing) => {
+  isRefreshingDashboard = refreshing;
+  document.querySelectorAll('[data-refresh-button]').forEach((button) => {
+    button.classList.toggle('is-loading', refreshing);
+    button.setAttribute('aria-busy', refreshing ? 'true' : 'false');
+    if (button.dataset.lockDuringRefresh === 'true') {
+      button.disabled = refreshing;
+    }
+  });
+  document.querySelectorAll('[data-refresh-icon]').forEach((icon) => {
+    icon.classList.toggle('is-spinning', refreshing);
+  });
+};
+
+const refreshDashboardData = async () => {
+  if (isRefreshingDashboard) {
+    return;
+  }
+  setRefreshingState(true);
+  try {
+    await loadEventsFromBackend();
+  } finally {
+    setRefreshingState(false);
+  }
+};
+
+const bindRefreshControls = () => {
+  document.querySelectorAll('[data-action="refresh-dashboard"]').forEach((button) => {
+    if (button.dataset.refreshBound === 'true') {
+      return;
+    }
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      refreshDashboardData();
+    });
+    button.dataset.refreshBound = 'true';
+  });
+  updateLastUpdatedDisplay();
+};
 
 const loadEventsFromBackend = async () => {
   try {
@@ -367,6 +433,7 @@ const loadEventsFromBackend = async () => {
     const events = await fetchAllEvents();
     setEvents(events);
     refreshUI();
+    setLastUpdated(new Date());
   } catch (error) {
     console.error('Konnte Events nicht laden', error);
     if (error?.isOffline) {
@@ -381,7 +448,7 @@ const bootstrapApplication = async () => {
   if (!hasBootstrapped) {
     setupNavigation(() => {
       refreshUI();
-      loadEventsFromBackend();
+      refreshDashboardData();
     });
     switchView('dashboard');
     setupCalendarControls(renderCalendar);
@@ -392,6 +459,7 @@ const bootstrapApplication = async () => {
     });
     renderPlaces();
     setupLocationSelector();
+    bindRefreshControls();
 
     const { toggleParticipation, handleFormSubmit, startEditing, deleteEvent } =
       createEventControllers({
@@ -413,7 +481,7 @@ const bootstrapApplication = async () => {
   }
 
   refreshUI();
-  await loadEventsFromBackend();
+  await refreshDashboardData();
 };
 
 document.addEventListener('DOMContentLoaded', () => {
