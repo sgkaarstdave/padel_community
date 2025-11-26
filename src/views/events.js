@@ -42,6 +42,7 @@ const registerOwnerHandlers = ({ onEdit, onDelete } = {}) => {
 const getFilteredEvents = () => {
   const skill = elements.skillFilter.value;
   const location = elements.locationFilter.value;
+  const onlyJoinable = elements.joinableOnlyFilter?.checked;
   const now = Date.now();
   return state.events.filter((event) => {
     const range = getEventTimeRange(event);
@@ -50,7 +51,8 @@ const getFilteredEvents = () => {
     }
     const skillMatch = skill === 'all' || event.skill === skill;
     const locationMatch = location === 'all' || event.location === location;
-    return skillMatch && locationMatch;
+    const joinableMatch = !onlyJoinable || isEventJoinable(event);
+    return skillMatch && locationMatch && joinableMatch;
   });
 };
 
@@ -343,6 +345,11 @@ const renderEventsList = () => {
   }
 
   const events = getFilteredEvents().sort((a, b) => {
+    const aJoinable = isEventJoinable(a);
+    const bJoinable = isEventJoinable(b);
+    if (aJoinable !== bJoinable) {
+      return aJoinable ? -1 : 1;
+    }
     const aDate = new Date(`${a.date}T${a.time}`);
     const bDate = new Date(`${b.date}T${b.time}`);
     return aDate - bDate;
@@ -602,9 +609,9 @@ const updateStats = () => {
 };
 
 const bindFilters = (handler) => {
-  [elements.skillFilter, elements.locationFilter].forEach((filter) =>
-    filter.addEventListener('change', handler)
-  );
+  [elements.skillFilter, elements.locationFilter, elements.joinableOnlyFilter]
+    .filter(Boolean)
+    .forEach((filter) => filter.addEventListener('change', handler));
 };
 
 const renderEventsHistory = () => {
