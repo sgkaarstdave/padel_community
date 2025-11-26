@@ -404,6 +404,12 @@ const createOwnerCard = (event) => {
     guestCount,
   } = getEventMeta(event);
   const history = Array.isArray(event.history) ? event.history : [];
+  const leaveHistory = history
+    .filter((entry) => entry.type === 'leave')
+    .sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  const latestLeave = leaveHistory[0];
   const historyItems = history
     .slice(0, 4)
     .map((entry) => {
@@ -453,6 +459,21 @@ const createOwnerCard = (event) => {
         }
         ${renderParticipantsList(event)}
         ${renderGuestsList(event)}
+        ${
+          latestLeave
+            ? `<div class="event-notice event-notice--warning" role="status">
+                <span class="event-notice__badge">Absage</span>
+                <div class="event-notice__details">
+                  <span class="event-notice__title">${leaveHistory.length} Absage${
+                leaveHistory.length === 1 ? '' : 'n'
+              }</span>
+                  <span class="event-notice__time">Letzte ${formatRelativeTime(
+                    latestLeave.timestamp
+                  )}</span>
+                </div>
+              </div>`
+            : ''
+        }
       </div>
       <div class="owner-card__sidebar">
         <small class="muted">${statusLabel}</small>
