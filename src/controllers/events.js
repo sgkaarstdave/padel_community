@@ -836,12 +836,11 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       }
 
       const history = Array.isArray(existingEvent.history) ? existingEvent.history : [];
-      const attendees = Math.max(0, Number(existingEvent.attendees) || 0);
       const participantCount = Array.isArray(existingEvent.participants)
         ? existingEvent.participants.length
-        : attendees;
+        : 0;
       const guestCount = Array.isArray(normalized.guests) ? normalized.guests.length : 0;
-      const occupied = Math.max(attendees, participantCount + guestCount);
+      const occupied = Math.max(participantCount + guestCount, 0);
       const capacity = Math.max(occupied, normalized.capacity);
       const payload = {
         ...existingEvent,
