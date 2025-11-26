@@ -160,6 +160,36 @@ const formatRelativeTime = (timestamp) => {
   return date.toLocaleDateString('de-DE');
 };
 
+const sortHistoryByRecency = (history = []) =>
+  [...history].sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+
+const describeHistoryEntry = (entry) => {
+  switch (entry?.type) {
+    case 'join':
+      return 'zugesagt';
+    case 'leave':
+      return 'abgesagt';
+    case 'update':
+      return 'Details aktualisiert';
+    case 'create':
+      return 'Termin erstellt';
+    default:
+      return 'Aktualisiert';
+  }
+};
+
+const getLatestActivityLabel = (event) => {
+  const history = sortHistoryByRecency(event.history || []);
+  const latest = history[0];
+  if (!latest) {
+    return 'Letzte Aktivität: Termin erstellt';
+  }
+  const actor = latest.type === 'create' ? 'Termin erstellt' : `${getHistoryActor(latest)} ${describeHistoryEntry(latest)}`;
+  return `Letzte Aktivität: ${actor} – ${formatRelativeTime(latest.timestamp)}`;
+};
+
 const readDismissedOwnerAlerts = () => {
   if (typeof localStorage === 'undefined') {
     return {};
@@ -191,19 +221,37 @@ const markOwnerAlertDismissed = (eventId, timestamp) => {
   });
 };
 
+const collectAbsentees = (event) => {
+  const participants = Array.isArray(event.participants) ? event.participants : [];
+  const activeEmails = new Set(participants.map((entry) => (entry.email || '').toLowerCase()));
+  const seen = new Set();
+  const absentees = [];
+
+  (event.history || [])
+    .filter((entry) => entry.type === 'leave')
+    .forEach((entry) => {
+      const email = (entry.actorEmail || '').toLowerCase();
+      const key = email || entry.actorName;
+      if (!key || seen.has(key) || activeEmails.has(email)) {
+        return;
+      }
+      seen.add(key);
+      absentees.push({
+        name: entry.actorName || entry.actorEmail || 'Teilnehmende Person',
+        email,
+        timestamp: entry.timestamp,
+      });
+    });
+
+  return absentees;
+};
+
 const renderParticipantsList = (event) => {
   const participants = Array.isArray(event.participants) ? event.participants : [];
+  const absentees = collectAbsentees(event);
   const baseLabel = '<span class="participants-list__label">Teilnehmende:</span>';
-  if (!participants.length) {
-    return `
-      <div class="participants-list participants-list--empty">
-        ${baseLabel}
-        <div class="participants-list__chips">
-          <span class="participant-chip participant-chip--empty">Noch keine Zusagen sichtbar</span>
-        </div>
-      </div>
-    `;
-  }
+  const noParticipants = !participants.length;
+
   const chips = participants
     .map((participant) => {
       const name = escapeHtml(participant.displayName || participant.email || 'Teilnehmende Person');
@@ -212,10 +260,38 @@ const renderParticipantsList = (event) => {
       return `<span class="participant-chip" title="${escapeHtml(tooltip)}">${name}</span>`;
     })
     .join('');
+
+  const absentChips = absentees
+    .map((entry) => {
+      const name = escapeHtml(entry.name || entry.email || 'Teilnehmende Person');
+      const tooltip = entry.timestamp ? `Absage ${formatRelativeTime(entry.timestamp)}` : 'Abgesagt';
+      return `<span class="participant-chip participant-chip--inactive" title="${escapeHtml(
+        tooltip
+      )}">${name} (abgesagt)</span>`;
+    })
+    .join('');
+
+  const inactiveBadge =
+    absentees.length > 0
+      ? `<button type="button" class="participants-list__badge" data-timeline-toggle="${
+          event.id
+        }">❌ ${absentees.length} Absage${absentees.length === 1 ? '' : 'n'} (historisch)</button>`
+      : '';
+
   return `
-      <div class="participants-list">
-        ${baseLabel}
-        <div class="participants-list__chips">${chips}</div>
+      <div class="participants-list ${noParticipants ? 'participants-list--empty' : ''}">
+        <div class="participants-list__header">
+          ${baseLabel}
+          ${inactiveBadge}
+        </div>
+        <div class="participants-list__chips">
+          ${chips || '<span class="participant-chip participant-chip--empty">Noch keine Zusagen sichtbar</span>'}
+        </div>
+        ${
+          absentChips
+            ? `<div class="participants-list__chips participants-list__chips--inactive">${absentChips}</div>`
+            : ''
+        }
       </div>
     `;
 };
@@ -238,6 +314,61 @@ const renderGuestsList = (event) => {
     <div class="participants-list participants-list--guests">
       <span class="participants-list__label">Gäste:</span>
       <div class="participants-list__chips">${chips}</div>
+    </div>
+  `;
+};
+
+const renderHistorySummary = (event) => {
+  const history = Array.isArray(event.history) ? event.history : [];
+  const joinCount = history.filter((entry) => entry.type === 'join').length;
+  const leaveCount = history.filter((entry) => entry.type === 'leave').length;
+  const changes = joinCount + leaveCount;
+
+  const label = changes
+    ? `📜 Verlauf: ${joinCount} Zusage${joinCount === 1 ? '' : 'n'}, ${leaveCount} Absage${
+        leaveCount === 1 ? '' : 'n'
+      }`
+    : '📜 Verlauf anzeigen';
+
+  return `
+    <div class="history-toggle">
+      <button class="history-toggle__button" type="button" data-timeline-toggle="${event.id}" aria-expanded="false">
+        <span>${label}</span>
+        <span class="history-toggle__caret" aria-hidden="true">▾</span>
+      </button>
+    </div>
+  `;
+};
+
+const renderHistoryTimeline = (event) => {
+  const history = sortHistoryByRecency(event.history || []);
+  const items = history
+    .map((entry) => {
+      const icon = entry.type === 'join' ? '✅' : entry.type === 'leave' ? '❌' : 'ℹ️';
+      const action = describeHistoryEntry(entry);
+      return `<li class="history-timeline__item history-timeline__item--${entry.type}">
+        <span class="history-timeline__icon">${icon}</span>
+        <div class="history-timeline__content">
+          <div class="history-timeline__title">${getHistoryActor(entry)} ${action}</div>
+          <div class="history-timeline__time">${formatRelativeTime(entry.timestamp)}</div>
+        </div>
+      </li>`;
+    })
+    .join('');
+
+  return `
+    <div class="history-timeline" data-timeline="${event.id}" hidden>
+      <div class="history-timeline__header">
+        <span>Verlauf</span>
+        <button class="history-toggle__button history-toggle__button--close" type="button" data-timeline-toggle="${
+          event.id
+        }">
+          Verlauf ausblenden ▴
+        </button>
+      </div>
+      <ul class="history-timeline__list">
+        ${items || '<li class="history-timeline__item">Noch keine Aktivitäten</li>'}
+      </ul>
     </div>
   `;
 };
@@ -445,86 +576,46 @@ const createOwnerCard = (event) => {
     capacity,
     guestCount,
   } = getEventMeta(event);
-  const history = Array.isArray(event.history) ? event.history : [];
-  const leaveHistory = history
-    .filter((entry) => entry.type === 'leave')
-    .sort(
-      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
-  const latestLeave = leaveHistory[0];
-  const historyItems = history
-    .slice(0, 4)
-    .map((entry) => {
-      const label =
-        entry.type === 'join'
-          ? 'Neue Zusage'
-          : entry.type === 'leave'
-          ? 'Absage'
-          : entry.type === 'update'
-          ? 'Details aktualisiert'
-          : 'Termin erstellt';
-      return `<li class="history__item history__item--${entry.type}">
-          <span>${label}</span>
-          <span class="muted">${formatRelativeTime(entry.timestamp)}</span>
-        </li>`;
-    })
-    .join('');
-
   const card = document.createElement('article');
   card.classList.add('event-card', 'owner-card');
   card.innerHTML = `
-      <div>
-        <div class="badge">${event.skill}</div>
-        <h4>${event.title}</h4>
-        <p class="muted">${event.location} · ${
-          new Date(`${event.date}T00:00`).toLocaleDateString('de-DE')
-        } · ${formatTimeRange(event)}</p>
-        <div class="event-meta owner-meta">
-          <span>👥 Zusagen: ${attendees}/${capacity}</span>
-          <span>🪑 Offene Plätze: ${openSpots}</span>
-          <span>💶 Gesamtkosten: ${formatCurrency(totalCost)}</span>
-          <span>🤝 Aktueller Anteil: ${formatCurrency(currentShare)}</span>
-          <span>📊 Bei voller Auslastung: ${formatCurrency(projectedShare)} p.P.</span>
+      <div class="owner-card__header">
+        <div>
+          <div class="badge">${event.skill}</div>
+          <h4>${event.title}</h4>
+          <p class="muted">${event.location} · ${
+            new Date(`${event.date}T00:00`).toLocaleDateString('de-DE')
+          } · ${formatTimeRange(event)}</p>
         </div>
-        <div class="event-flags event-flags--owner">
-          ${renderCourtStatus(event)}
-          ${
-            guestCount
-              ? `<span class="status-badge status-badge--neutral">${guestCount} Gast${
-                  guestCount === 1 ? '' : 'e'
-                }</span>`
-              : ''
-          }
+        <div class="event-activity" aria-label="Letzte Aktivität">
+          <span class="event-activity__icon">⏰</span>
+          <span class="event-activity__text">${getLatestActivityLabel(event)}</span>
         </div>
+      </div>
+      <div class="event-meta owner-meta">
+        <span>👥 Zusagen: ${attendees}/${capacity}</span>
+        <span>🪑 Offene Plätze: ${openSpots}</span>
+        <span>💶 Gesamtkosten: ${formatCurrency(totalCost)}</span>
+        <span>🤝 Aktueller Anteil: ${formatCurrency(currentShare)}</span>
+        <span>📊 Bei voller Auslastung: ${formatCurrency(projectedShare)} p.P.</span>
+      </div>
+      <div class="event-flags event-flags--owner">
+        ${renderCourtStatus(event)}
         ${
-          event.notes ? `<p class="muted">${event.notes}</p>` : ''
-        }
-        ${renderParticipantsList(event)}
-        ${renderGuestsList(event)}
-        ${
-          latestLeave
-            ? `<div class="event-notice event-notice--warning" role="status">
-                <span class="event-notice__badge">Absage</span>
-                <div class="event-notice__details">
-                  <span class="event-notice__title">${leaveHistory.length} Absage${
-                leaveHistory.length === 1 ? '' : 'n'
-              }</span>
-                  <span class="event-notice__subtitle">Letzte Absage von ${getHistoryActor(
-                    latestLeave
-                  )}</span>
-                  <span class="event-notice__time">Letzte ${formatRelativeTime(
-                    latestLeave.timestamp
-                  )}</span>
-                </div>
-              </div>`
+          guestCount
+            ? `<span class="status-badge status-badge--neutral">${guestCount} Gast${
+                guestCount === 1 ? '' : 'e'
+              }</span>`
             : ''
         }
       </div>
-      <div class="owner-card__sidebar">
+      ${event.notes ? `<p class="muted">${event.notes}</p>` : ''}
+      ${renderParticipantsList(event)}
+      ${renderGuestsList(event)}
+      ${renderHistorySummary(event)}
+      ${renderHistoryTimeline(event)}
+      <div class="owner-card__footer">
         <small class="muted">${statusLabel}</small>
-        <ul class="history">
-          ${historyItems || '<li class="history__item"><span>Keine Aktivitäten</span></li>'}
-        </ul>
         <div class="owner-card__actions">
           <button type="button" class="owner-card__action" data-action="edit" data-id="${
             event.id
@@ -540,6 +631,34 @@ const createOwnerCard = (event) => {
         </div>
       </div>
     `;
+
+  const timeline = card.querySelector(`[data-timeline="${event.id}"]`);
+  const timelineToggles = card.querySelectorAll(`[data-timeline-toggle="${event.id}"]`);
+
+  const setTimelineVisibility = (expanded) => {
+    if (!timeline) {
+      return;
+    }
+    if (expanded) {
+      timeline.removeAttribute('hidden');
+    } else {
+      timeline.setAttribute('hidden', '');
+    }
+    timelineToggles.forEach((toggle) => {
+      toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      const caret = toggle.querySelector('.history-toggle__caret');
+      if (caret) {
+        caret.textContent = expanded ? '▴' : '▾';
+      }
+    });
+  };
+
+  timelineToggles.forEach((toggle) =>
+    toggle.addEventListener('click', () => {
+      const willExpand = timeline ? timeline.hasAttribute('hidden') : false;
+      setTimelineVisibility(willExpand);
+    })
+  );
 
   const editButton = card.querySelector('[data-action="edit"]');
   if (editButton) {
@@ -648,18 +767,18 @@ const renderMyAppointments = () => {
   }
 
   elements.myAppointmentsList.innerHTML = '';
+  if (elements.ownerAlerts) {
+    elements.ownerAlerts.innerHTML = '';
+  }
 
   if (!createdEvents.length) {
     if (elements.ownerAlerts) {
-      elements.ownerAlerts.innerHTML =
-        '<div class="alert alert--muted">Du hast noch keine eigenen Termine erstellt.</div>';
+      elements.ownerAlerts.innerHTML = '';
     }
     elements.myAppointmentsList.innerHTML =
       '<div class="empty">Du hast bisher keine eigenen Termine erstellt.</div>';
     return;
   }
-
-  renderOwnerAlerts(createdEvents);
 
   createdEvents.forEach((event) => {
     const card = createOwnerCard(event);

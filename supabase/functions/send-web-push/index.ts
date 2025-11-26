@@ -58,6 +58,13 @@ type SubscriptionRow = {
 };
 
 const defaultAppUrl = 'https://padel.community';
+const RSVP_COOLDOWN_MS = 60 * 1000;
+
+type EventMetadata = {
+  participants?: { userId?: string | null }[];
+  ownerId?: string | null;
+  createdByUserId?: string | null;
+};
 
 const buildNotificationCopy = (type: PushRequest['type'], event?: EventSummary | null, actor?: Actor) => {
   const dateLabel = (() => {
@@ -89,7 +96,7 @@ const buildNotificationCopy = (type: PushRequest['type'], event?: EventSummary |
   switch (type) {
     case 'event.created':
       return {
-        title: `Neue Session: ${eventLabel}`,
+        title: `Neuer Termin: ${eventLabel}`,
         body: `${actorName} hostet${location} am ${dateLabel || 'bald'}.`,
       };
     case 'event.cancelled':
@@ -100,15 +107,61 @@ const buildNotificationCopy = (type: PushRequest['type'], event?: EventSummary |
     case 'event.joined':
       return {
         title: `Neue Zusage für ${eventLabel}`,
-        body: `${actorName} nimmt jetzt teil.`,
+        body: `${actorName} nimmt an ${eventLabel}${dateLabel ? ` am ${dateLabel}` : ''} teil.`,
       };
     case 'event.left':
     default:
       return {
         title: `Absage für ${eventLabel}`,
-        body: `${actorName} hat seine Teilnahme zurückgezogen.`,
+        body: `${actorName} hat für ${eventLabel}${dateLabel ? ` am ${dateLabel}` : ''} abgesagt.`,
       };
   }
+};
+
+const safeParseMetadata = (raw: string | null | undefined): EventMetadata => {
+  if (!raw) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed ? (parsed as EventMetadata) : {};
+  } catch (_error) {
+    return {};
+  }
+};
+
+const loadEventContext = async (
+  client: ReturnType<typeof createClient>,
+  eventId?: string
+): Promise<{ hostUserId: string | null; participantUserIds: string[] }> => {
+  if (!eventId) {
+    return { hostUserId: null, participantUserIds: [] };
+  }
+
+  const { data, error } = await client
+    .from('events')
+    .select('id, description, created_by_user_id')
+    .eq('id', eventId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return { hostUserId: null, participantUserIds: [] };
+  }
+
+  const metadata = safeParseMetadata(data.description || null);
+  const hostUserId =
+    data.created_by_user_id || metadata.ownerId || metadata.createdByUserId || null;
+  const participantUserIds = Array.isArray(metadata.participants)
+    ? metadata.participants
+        .map((entry) => entry?.userId)
+        .filter((id): id is string => typeof id === 'string' && !!id)
+    : [];
+
+  return { hostUserId, participantUserIds };
 };
 
 const fetchRecipients = async (client: ReturnType<typeof createClient>, request: PushRequest) => {
@@ -138,14 +191,20 @@ const resolveAudience = async (
   }
 
   if (request.type === 'event.joined' || request.type === 'event.left') {
-    const hostId = request.event?.createdByUserId;
-    if (hostId) {
-      return fetchRecipients(client, {
-        ...request,
-        audience: { userIds: [hostId] },
-      });
+    const { hostUserId, participantUserIds } = await loadEventContext(client, request.event?.id);
+    const recipients = new Set<string>();
+    if (hostUserId) {
+      recipients.add(hostUserId);
     }
-    return [];
+    participantUserIds.forEach((id) => recipients.add(id));
+    if (request.actor?.id) {
+      recipients.delete(request.actor.id);
+    }
+    const userIds = Array.from(recipients);
+    if (!userIds.length) {
+      return [];
+    }
+    return fetchRecipients(client, { ...request, audience: { userIds } });
   }
 
   // Broadcast to everyone except the actor for create/cancel events.
@@ -153,6 +212,69 @@ const resolveAudience = async (
     ...request,
     audience: { excludeUserIds: [request.actor.id] },
   });
+};
+
+const isRsvpChange = (type: PushRequest['type']) => type === 'event.joined' || type === 'event.left';
+
+const shouldThrottleNotification = async (
+  client: ReturnType<typeof createClient>,
+  request: PushRequest
+): Promise<boolean> => {
+  if (!isRsvpChange(request.type)) {
+    return false;
+  }
+  const eventId = request.event?.id;
+  const actorId = request.actor?.id;
+  if (!eventId || !actorId) {
+    return false;
+  }
+  const changeType = request.type === 'event.joined' ? 'join' : 'leave';
+  const { data, error } = await client
+    .from('event_notification_log')
+    .select('id, last_sent_at')
+    .eq('event_id', eventId)
+    .eq('actor_user_id', actorId)
+    .eq('change_type', changeType)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  const lastSent = data?.last_sent_at ? new Date(data.last_sent_at) : null;
+  if (lastSent && Date.now() - lastSent.getTime() < RSVP_COOLDOWN_MS) {
+    return true;
+  }
+
+  return false;
+};
+
+const persistNotificationLog = async (
+  client: ReturnType<typeof createClient>,
+  request: PushRequest
+) => {
+  if (!isRsvpChange(request.type)) {
+    return;
+  }
+  const eventId = request.event?.id;
+  const actorId = request.actor?.id;
+  if (!eventId || !actorId) {
+    return;
+  }
+  const changeType = request.type === 'event.joined' ? 'join' : 'leave';
+  const { error } = await client.from('event_notification_log').upsert(
+    {
+      event_id: eventId,
+      actor_user_id: actorId,
+      change_type: changeType,
+      last_sent_at: new Date().toISOString(),
+    },
+    { onConflict: 'event_id,actor_user_id,change_type' }
+  );
+
+  if (error) {
+    throw error;
+  }
 };
 
 const removeInvalidSubscription = async (
@@ -241,6 +363,12 @@ serve(async (req) => {
 
     webpush.setVapidDetails('mailto:push@padel.community', VAPID_PUBLIC_KEY, vapidPrivateKey);
 
+    if (await shouldThrottleNotification(client, body)) {
+      return new Response(JSON.stringify({ delivered: 0, skipped: true, reason: 'cooldown' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const recipients = await resolveAudience(client, body);
     if (recipients.length === 0) {
       return new Response(JSON.stringify({ delivered: 0, skipped: true }), {
@@ -249,6 +377,7 @@ serve(async (req) => {
     }
 
     const summary = await sendNotifications(recipients, body, client);
+    await persistNotificationLog(client, body);
 
     return new Response(JSON.stringify({ delivered: summary.sent, failed: summary.failed }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

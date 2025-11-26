@@ -197,6 +197,7 @@ const sanitizeParticipants = (participants) => {
       email,
       displayName: participant.displayName || participant.email,
       joinedAt: participant.joinedAt || new Date().toISOString(),
+      userId: participant.userId || participant.id || null,
     });
   });
   return normalized;
@@ -590,6 +591,7 @@ const incrementSlotsTaken = async (eventId) => {
       email: session.email.toLowerCase(),
       displayName: session.displayName || session.email,
       joinedAt: new Date().toISOString(),
+      userId: session.userId || null,
     },
   ]);
   const actorName = session.displayName || session.email;
