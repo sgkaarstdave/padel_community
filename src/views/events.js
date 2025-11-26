@@ -122,6 +122,17 @@ const RELATIVE_TIME_LIMITS = [
   { unit: 'day', value: 7 },
 ];
 
+const OWNER_ALERT_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+const OWNER_ALERT_WINDOW_DAYS = Math.round(
+  OWNER_ALERT_WINDOW_MS / (24 * 60 * 60 * 1000)
+);
+const OWNER_ALERTS_STORAGE_KEY = 'ownerAlertsDismissed';
+
+const getHistoryActor = (entry) => {
+  const actorLabel = entry?.actorName || entry?.actorEmail;
+  return escapeHtml(actorLabel || 'Teilnehmende Person');
+};
+
 const formatRelativeTime = (timestamp) => {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) {
@@ -147,6 +158,37 @@ const formatRelativeTime = (timestamp) => {
     return `vor ${days} Tg.`;
   }
   return date.toLocaleDateString('de-DE');
+};
+
+const readDismissedOwnerAlerts = () => {
+  if (typeof localStorage === 'undefined') {
+    return {};
+  }
+  try {
+    const raw = localStorage.getItem(OWNER_ALERTS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) || {} : {};
+  } catch (error) {
+    return {};
+  }
+};
+
+const persistDismissedOwnerAlerts = (value) => {
+  if (typeof localStorage === 'undefined') {
+    return;
+  }
+  try {
+    localStorage.setItem(OWNER_ALERTS_STORAGE_KEY, JSON.stringify(value));
+  } catch (error) {
+    // ignore persistence errors
+  }
+};
+
+const markOwnerAlertDismissed = (eventId, timestamp) => {
+  const dismissed = readDismissedOwnerAlerts();
+  persistDismissedOwnerAlerts({
+    ...dismissed,
+    [eventId]: timestamp,
+  });
 };
 
 const renderParticipantsList = (event) => {
@@ -467,6 +509,9 @@ const createOwnerCard = (event) => {
                   <span class="event-notice__title">${leaveHistory.length} Absage${
                 leaveHistory.length === 1 ? '' : 'n'
               }</span>
+                  <span class="event-notice__subtitle">Letzte Absage von ${getHistoryActor(
+                    latestLeave
+                  )}</span>
                   <span class="event-notice__time">Letzte ${formatRelativeTime(
                     latestLeave.timestamp
                   )}</span>
@@ -513,8 +558,9 @@ const renderOwnerAlerts = (events) => {
   if (!elements.ownerAlerts) {
     return;
   }
-  const windowMs = 7 * 24 * 60 * 60 * 1000;
+  const windowMs = OWNER_ALERT_WINDOW_MS;
   const now = Date.now();
+  const dismissedAlerts = readDismissedOwnerAlerts();
   const alerts = events
     .map((event) => {
       const history = Array.isArray(event.history) ? event.history : [];
@@ -526,32 +572,66 @@ const renderOwnerAlerts = (events) => {
       if (Number.isNaN(timestamp) || now - timestamp > windowMs) {
         return null;
       }
+      const timestampIso = new Date(latestLeave.timestamp).toISOString();
       return {
         event,
-        entry: latestLeave,
+        entry: { ...latestLeave, timestamp: timestampIso },
       };
     })
     .filter(Boolean)
     .sort(
       (a, b) =>
         new Date(b.entry.timestamp).getTime() - new Date(a.entry.timestamp).getTime()
+    )
+    .filter(
+      ({ event, entry }) =>
+        !dismissedAlerts?.[event.id] || dismissedAlerts[event.id] !== entry.timestamp
     );
 
   if (!alerts.length) {
     elements.ownerAlerts.innerHTML =
-      '<div class="alert alert--muted">Keine neuen Absagen in den letzten 7 Tagen.</div>';
+      `<div class="alert alert--muted">Keine neuen Absagen in den letzten ${OWNER_ALERT_WINDOW_DAYS} Tagen.</div>`;
     return;
   }
 
   elements.ownerAlerts.innerHTML = alerts
-    .map(
-      ({ event, entry }) => `
-        <div class="alert alert--warning">
-          <strong>${event.title}</strong>: Absage ${formatRelativeTime(entry.timestamp)}
+    .map(({ event, entry }) => {
+      const actor = getHistoryActor(entry);
+      return `
+        <div class="owner-alert" data-alert-id="${event.id}" data-alert-ts="${escapeHtml(
+        entry.timestamp
+      )}">
+          <div class="owner-alert__icon">⚠️</div>
+          <div class="owner-alert__content">
+            <p class="owner-alert__label">Absage</p>
+            <p class="owner-alert__title">${escapeHtml(event.title)}</p>
+            <p class="owner-alert__meta">von ${actor} · ${formatRelativeTime(entry.timestamp)}</p>
+          </div>
+          <button type="button" class="owner-alert__dismiss" data-alert-dismiss>
+            Verstanden
+          </button>
         </div>
-      `
-    )
+      `;
+    })
     .join('');
+
+  elements.ownerAlerts
+    .querySelectorAll('[data-alert-dismiss]')
+    .forEach((button) =>
+      button.addEventListener('click', () => {
+        const alertCard = button.closest('.owner-alert');
+        const eventId = alertCard?.getAttribute('data-alert-id');
+        const timestamp = alertCard?.getAttribute('data-alert-ts');
+        if (eventId && timestamp) {
+          markOwnerAlertDismissed(eventId, timestamp);
+        }
+        alertCard?.remove();
+        if (!elements.ownerAlerts.querySelector('.owner-alert')) {
+          elements.ownerAlerts.innerHTML =
+            `<div class="alert alert--muted">Keine neuen Absagen in den letzten ${OWNER_ALERT_WINDOW_DAYS} Tagen.</div>`;
+        }
+      })
+    );
 };
 
 const renderMyAppointments = () => {

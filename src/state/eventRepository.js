@@ -592,8 +592,9 @@ const incrementSlotsTaken = async (eventId) => {
       joinedAt: new Date().toISOString(),
     },
   ]);
+  const actorName = session.displayName || session.email;
   const history = [
-    { timestamp: new Date().toISOString(), type: 'join' },
+    { timestamp: new Date().toISOString(), type: 'join', actorName, actorEmail: session.email },
     ...(event.history || []),
   ].slice(0, MAX_HISTORY_ENTRIES);
   const guestCount = Array.isArray(event.guests) ? event.guests.length : Number(event.guestCount) || 0;
@@ -619,8 +620,9 @@ const decrementSlotsTaken = async (eventId) => {
   if (participants.length === (event.participants || []).length) {
     throw new Error('Du hast für dieses Event keine Zusage.');
   }
+  const actorName = session.displayName || session.email;
   const history = [
-    { timestamp: new Date().toISOString(), type: 'leave' },
+    { timestamp: new Date().toISOString(), type: 'leave', actorName, actorEmail: session.email },
     ...(event.history || []),
   ].slice(0, MAX_HISTORY_ENTRIES);
   const guestCount = Array.isArray(event.guests) ? event.guests.length : Number(event.guestCount) || 0;
