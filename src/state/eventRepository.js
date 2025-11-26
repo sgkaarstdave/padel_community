@@ -451,7 +451,7 @@ const syncGuestsForEvent = async (eventId, guests) => {
   }
 
   const payload = normalizedGuests.map((guest) => ({
-    id: guest.id || undefined,
+    ...(guest.id ? { id: guest.id } : {}),
     event_id: eventId,
     name: guest.name,
   }));
