@@ -50,6 +50,10 @@ button {
   min-height: 44px;
 }
 
+.small {
+  font-size: 0.9rem;
+}
+
 body.sidebar-open {
   overflow: hidden;
 }

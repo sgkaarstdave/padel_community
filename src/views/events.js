@@ -54,12 +54,23 @@ const getFilteredEvents = () => {
   });
 };
 
+const getGuestCount = (event) => {
+  if (Array.isArray(event?.guests)) {
+    return event.guests.length;
+  }
+  const numeric = Number(event?.guestCount);
+  return Number.isFinite(numeric) ? Math.max(0, numeric) : 0;
+};
+
 const getEventMeta = (event) => {
   const totalCost = Number(event.totalCost) || 0;
   const attendeeCount = Math.max(0, Number(event.attendees) || 0);
-  const normalizedAttendees = Math.max(1, attendeeCount);
+  const guestCount = getGuestCount(event);
+  const participantCount = Math.max(0, Array.isArray(event.participants) ? event.participants.length : attendeeCount);
+  const occupied = Math.max(attendeeCount, participantCount + guestCount);
+  const normalizedAttendees = Math.max(1, occupied);
   const capacity = Math.max(normalizedAttendees, Number(event.capacity) || 0);
-  const openSpots = Math.max(0, capacity - attendeeCount);
+  const openSpots = Math.max(0, capacity - occupied);
   const isFull = openSpots <= 0;
   const rsvpDeadline = event.rsvpDeadline || event.deadline || '';
   const isDeadlineReached = !!rsvpDeadline && new Date(rsvpDeadline).getTime() < Date.now();
@@ -92,8 +103,9 @@ const getEventMeta = (event) => {
     currentShare,
     projectedShare,
     totalCost,
-    attendees: attendeeCount,
+    attendees: occupied,
     capacity,
+    guestCount,
   };
 };
 
@@ -157,11 +169,40 @@ const renderParticipantsList = (event) => {
     })
     .join('');
   return `
-    <div class="participants-list">
-      ${baseLabel}
+      <div class="participants-list">
+        ${baseLabel}
+        <div class="participants-list__chips">${chips}</div>
+      </div>
+    `;
+};
+
+const renderGuestsList = (event) => {
+  const guests = Array.isArray(event.guests) ? event.guests : [];
+  if (!guests.length) {
+    return '';
+  }
+  const chips = guests
+    .map(
+      (guest) => `
+        <span class="participant-chip participant-chip--guest" title="Gast">G · ${escapeHtml(
+          guest.name || 'Gast'
+        )}</span>
+      `
+    )
+    .join('');
+  return `
+    <div class="participants-list participants-list--guests">
+      <span class="participants-list__label">Gäste:</span>
       <div class="participants-list__chips">${chips}</div>
     </div>
   `;
+};
+
+const renderCourtStatus = (event) => {
+  if (event.courtBooked) {
+    return '<span class="status-badge status-badge--success">✅ Platz gebucht</span>';
+  }
+  return '<span class="status-badge status-badge--muted">⚠️ Platz noch nicht gebucht</span>';
 };
 
 const createEventCard = (event) => {
@@ -176,6 +217,7 @@ const createEventCard = (event) => {
     totalCost,
     attendees,
     capacity,
+    guestCount,
   } = getEventMeta(event);
   const rsvpDeadline = event.rsvpDeadline || event.deadline || '';
   const showParticipationButton = !event.createdByMe;
@@ -203,7 +245,7 @@ const createEventCard = (event) => {
           <span>🗓️ ${new Date(`${event.date}T00:00`).toLocaleDateString('de-DE')}</span>
           <span>⏱️ ${formatTimeRange(event)}</span>
           <span>💶 Gesamtkosten: ${formatCurrency(totalCost)}</span>
-          <span>🤝 Anteil aktuell: ${formatCurrency(currentShare)} (${attendees} Zusagen)</span>
+          <span>🤝 Anteil aktuell: ${formatCurrency(currentShare)} (${attendees} Zusagen/Gäste)</span>
           <span>📊 Bei ${capacity} Spieler:innen: ${formatCurrency(
             projectedShare
           )} p.P.</span>
@@ -216,7 +258,18 @@ const createEventCard = (event) => {
               : ''
           }
         </div>
+        <div class="event-flags">
+          ${renderCourtStatus(event)}
+          ${
+            guestCount
+              ? `<span class="status-badge status-badge--neutral">${guestCount} Gast${
+                  guestCount === 1 ? '' : 'e'
+                }</span>`
+              : ''
+          }
+        </div>
         ${renderParticipantsList(event)}
+        ${renderGuestsList(event)}
         ${event.notes ? `<p class="muted">${event.notes}</p>` : ''}
         ${
           event.paypalLink || event.paymentLink
@@ -341,6 +394,7 @@ const createOwnerCard = (event) => {
     totalCost,
     attendees,
     capacity,
+    guestCount,
   } = getEventMeta(event);
   const history = Array.isArray(event.history) ? event.history : [];
   const historyItems = history
@@ -377,9 +431,21 @@ const createOwnerCard = (event) => {
           <span>🤝 Aktueller Anteil: ${formatCurrency(currentShare)}</span>
           <span>📊 Bei voller Auslastung: ${formatCurrency(projectedShare)} p.P.</span>
         </div>
+        <div class="event-flags event-flags--owner">
+          ${renderCourtStatus(event)}
+          ${
+            guestCount
+              ? `<span class="status-badge status-badge--neutral">${guestCount} Gast${
+                  guestCount === 1 ? '' : 'e'
+                }</span>`
+              : ''
+          }
+        </div>
         ${
           event.notes ? `<p class="muted">${event.notes}</p>` : ''
         }
+        ${renderParticipantsList(event)}
+        ${renderGuestsList(event)}
       </div>
       <div class="owner-card__sidebar">
         <small class="muted">${statusLabel}</small>

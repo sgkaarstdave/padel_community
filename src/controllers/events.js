@@ -32,6 +32,7 @@ const DEADLINE_QUICK_OFFSETS = [
   { label: '1 Woche vorher', ms: 7 * 24 * 60 * 60 * 1000 },
 ];
 const CUSTOM_DEADLINE_VALUE = '__custom__';
+const MAX_GUESTS = 6;
 
 const formatDeadlineForInput = (value) => {
   if (!value) {
@@ -73,6 +74,8 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
   const customDeadlineSection = form?.querySelector('[data-deadline-custom]');
   const customDeadlineInput = customDeadlineSection?.querySelector('[data-deadline-custom-input]');
   const customDeadlineHelper = customDeadlineSection?.querySelector('[data-deadline-helper]');
+  const guestList = form?.querySelector('[data-guest-list]');
+  const addGuestButton = form?.querySelector('[data-add-guest]');
   const deadlinePlaceholderText =
     deadlineSelect?.querySelector('option[value=""]')?.textContent?.trim() ||
     'Zusage-Deadline wählen';
@@ -316,6 +319,71 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     deadlineSelect.disabled = !windowInfo;
   };
 
+  const updateGuestControls = () => {
+    if (!addGuestButton || !guestList) {
+      return;
+    }
+    addGuestButton.disabled = guestList.childElementCount >= MAX_GUESTS;
+  };
+
+  const clearGuestList = () => {
+    if (guestList) {
+      guestList.innerHTML = '';
+    }
+    updateGuestControls();
+  };
+
+  const addGuestField = (guest = {}) => {
+    if (!guestList || guestList.childElementCount >= MAX_GUESTS) {
+      return;
+    }
+    const row = document.createElement('div');
+    row.className = 'guest-row';
+    if (guest.id) {
+      row.dataset.guestId = guest.id;
+    }
+    row.innerHTML = `
+      <input
+        type="text"
+        name="guestName"
+        placeholder="Name des Gastes"
+        autocomplete="off"
+        value="${guest.name ? guest.name : ''}"
+      />
+      <button type="button" class="guest-remove" aria-label="Gast entfernen">✕</button>
+    `;
+    const removeButton = row.querySelector('.guest-remove');
+    if (removeButton) {
+      removeButton.addEventListener('click', () => {
+        row.remove();
+        updateGuestControls();
+      });
+    }
+    guestList.appendChild(row);
+    updateGuestControls();
+  };
+
+  const readGuestsFromForm = () => {
+    if (!guestList) {
+      return [];
+    }
+    const guests = [];
+    guestList.querySelectorAll('.guest-row').forEach((row) => {
+      const input = row.querySelector('input[name="guestName"]');
+      const name = input?.value?.trim();
+      if (name) {
+        guests.push({ id: row.dataset.guestId || undefined, name });
+      }
+    });
+    return guests.slice(0, MAX_GUESTS);
+  };
+
+  const populateGuests = (guests = []) => {
+    clearGuestList();
+    guests.slice(0, MAX_GUESTS).forEach((guest) => addGuestField(guest));
+    updateGuestControls();
+  };
+
   const syncDeadlineSelectWithInput = () => {
     if (!deadlineSelect) {
       return;
@@ -451,9 +519,11 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     if (form) {
       form.reset();
     }
+    clearGuestList();
     setHiddenDeadlineValue('');
     setFormMode('create');
     applyDeadlineFieldBounds();
+    updateGuestControls();
   };
 
   const focusTitleField = () => {
@@ -491,6 +561,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
   if (form) {
     setFormMode('create');
     applyDeadlineFieldBounds();
+    updateGuestControls();
   }
 
   if (cancelEditButton) {
@@ -523,6 +594,9 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     };
     customDeadlineInput.addEventListener('input', handleCustomDeadlineInputChange);
     customDeadlineInput.addEventListener('change', handleCustomDeadlineInputChange);
+  }
+  if (addGuestButton) {
+    addGuestButton.addEventListener('click', () => addGuestField());
   }
   if (form) {
     form.addEventListener('reset', () => {
@@ -617,6 +691,8 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
 
     const paypalLink = raw.paypalLink?.trim() ?? raw.paymentLink?.trim() ?? '';
     const notes = raw.notes?.trim() ?? '';
+    const courtBooked = !!form?.querySelector('input[name="courtBooked"]')?.checked;
+    const guests = readGuestsFromForm();
 
     return {
       title,
@@ -634,6 +710,8 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       paymentLink: paypalLink,
       rsvpDeadline: normalizedDeadline,
       deadline: normalizedDeadline,
+      courtBooked,
+      guests,
     };
   };
 
@@ -759,11 +837,17 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
 
       const history = Array.isArray(existingEvent.history) ? existingEvent.history : [];
       const attendees = Math.max(0, Number(existingEvent.attendees) || 0);
-      const capacity = Math.max(attendees, normalized.capacity);
+      const participantCount = Array.isArray(existingEvent.participants)
+        ? existingEvent.participants.length
+        : attendees;
+      const guestCount = Array.isArray(normalized.guests) ? normalized.guests.length : 0;
+      const occupied = Math.max(attendees, participantCount + guestCount);
+      const capacity = Math.max(occupied, normalized.capacity);
       const payload = {
         ...existingEvent,
         ...normalized,
         capacity,
+        attendees: Math.min(capacity, occupied),
         history: [{ timestamp: now.toISOString(), type: 'update' }, ...history],
       };
       try {
@@ -794,12 +878,16 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
           },
         ]
       : [];
-    const attendees = Math.max(1, participants.length || 0);
+    const guestCount = Array.isArray(normalized.guests) ? normalized.guests.length : 0;
+    const attendees = Math.max(1, participants.length + guestCount);
+    const capacity = Math.max(normalized.capacity, attendees);
 
     const draft = {
       ...normalized,
       id: `draft-${Date.now()}`,
       attendees,
+      guests: normalized.guests || [],
+      capacity,
     };
     const conflictingSession = findConflictingSession(draft);
     if (conflictingSession) {
@@ -809,8 +897,10 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
 
     const eventToStore = {
       ...normalized,
+      guests: normalized.guests || [],
       owner: ownerLabel,
       attendees,
+      capacity,
       createdAt,
       joined: true,
       createdByMe: true,
@@ -851,6 +941,16 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
     }
   };
 
+  const setCheckboxValue = (selector, checked = false) => {
+    if (!form) {
+      return;
+    }
+    const field = form.querySelector(selector);
+    if (field && field.type === 'checkbox') {
+      field.checked = !!checked;
+    }
+  };
+
   const populateForm = (event) => {
     if (!form) {
       return;
@@ -868,6 +968,8 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
       'input[name="rsvpDeadline"]',
       formatDeadlineForInput(event.rsvpDeadline || event.deadline),
     );
+    setCheckboxValue('input[name="courtBooked"]', !!event.courtBooked);
+    populateGuests(event.guests || []);
     applyDeadlineFieldBounds();
     applyLocationSelection(event.location);
   };
