@@ -128,9 +128,11 @@ const OWNER_ALERT_WINDOW_DAYS = Math.round(
 );
 const OWNER_ALERTS_STORAGE_KEY = 'ownerAlertsDismissed';
 
+const DEFAULT_ACTOR_LABEL = 'Ein Teilnehmer';
+
 const getHistoryActor = (entry) => {
   const actorLabel = entry?.actorName || entry?.actorEmail;
-  return escapeHtml(actorLabel || 'Teilnehmende Person');
+  return escapeHtml(actorLabel || DEFAULT_ACTOR_LABEL);
 };
 
 const formatRelativeTime = (timestamp) => {
@@ -237,7 +239,7 @@ const collectAbsentees = (event) => {
       }
       seen.add(key);
       absentees.push({
-        name: entry.actorName || entry.actorEmail || 'Teilnehmende Person',
+        name: entry.actorName || entry.actorEmail || DEFAULT_ACTOR_LABEL,
         email,
         timestamp: entry.timestamp,
       });
@@ -254,16 +256,16 @@ const renderParticipantsList = (event) => {
 
   const chips = participants
     .map((participant) => {
-      const name = escapeHtml(participant.displayName || participant.email || 'Teilnehmende Person');
+      const name = escapeHtml(participant.displayName || participant.email || DEFAULT_ACTOR_LABEL);
       const relative = participant.joinedAt ? formatRelativeTime(participant.joinedAt) : '';
-      const tooltip = relative ? `Zusage ${relative}` : 'Teilnehmende Person';
+      const tooltip = relative ? `Zusage ${relative}` : DEFAULT_ACTOR_LABEL;
       return `<span class="participant-chip" title="${escapeHtml(tooltip)}">${name}</span>`;
     })
     .join('');
 
   const absentChips = absentees
     .map((entry) => {
-      const name = escapeHtml(entry.name || entry.email || 'Teilnehmende Person');
+      const name = escapeHtml(entry.name || entry.email || DEFAULT_ACTOR_LABEL);
       const tooltip = entry.timestamp ? `Absage ${formatRelativeTime(entry.timestamp)}` : 'Abgesagt';
       return `<span class="participant-chip participant-chip--inactive" title="${escapeHtml(
         tooltip
@@ -271,18 +273,10 @@ const renderParticipantsList = (event) => {
     })
     .join('');
 
-  const inactiveBadge =
-    absentees.length > 0
-      ? `<button type="button" class="participants-list__badge" data-timeline-toggle="${
-          event.id
-        }">❌ ${absentees.length} Absage${absentees.length === 1 ? '' : 'n'} (historisch)</button>`
-      : '';
-
   return `
       <div class="participants-list ${noParticipants ? 'participants-list--empty' : ''}">
         <div class="participants-list__header">
           ${baseLabel}
-          ${inactiveBadge}
         </div>
         <div class="participants-list__chips">
           ${chips || '<span class="participant-chip participant-chip--empty">Noch keine Zusagen sichtbar</span>'}
@@ -345,12 +339,16 @@ const renderHistoryTimeline = (event) => {
   const items = history
     .map((entry) => {
       const icon = entry.type === 'join' ? '✅' : entry.type === 'leave' ? '❌' : 'ℹ️';
+      const actor = getHistoryActor(entry);
       const action = describeHistoryEntry(entry);
+      const relative = formatRelativeTime(entry.timestamp);
+      const content = entry.type === 'create'
+        ? `${actor} hat ${relative} den Termin erstellt`
+        : `${actor} hat ${relative} ${action}`;
       return `<li class="history-timeline__item history-timeline__item--${entry.type}">
         <span class="history-timeline__icon">${icon}</span>
         <div class="history-timeline__content">
-          <div class="history-timeline__title">${getHistoryActor(entry)} ${action}</div>
-          <div class="history-timeline__time">${formatRelativeTime(entry.timestamp)}</div>
+          <div class="history-timeline__title">${content}</div>
         </div>
       </li>`;
     })

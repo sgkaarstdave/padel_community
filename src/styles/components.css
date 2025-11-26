@@ -121,20 +121,6 @@
   font-weight: 600;
 }
 
-.participants-list__badge {
-  background: rgba(248, 113, 113, 0.12);
-  color: var(--danger);
-  border: 1px solid rgba(248, 113, 113, 0.45);
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-
-.participants-list__badge:hover {
-  background: rgba(248, 113, 113, 0.2);
-}
-
 .participants-list__chips {
   display: flex;
   flex-wrap: wrap;
@@ -897,13 +883,16 @@
   font-size: 1rem;
 }
 
-.history-timeline__title {
-  font-weight: 700;
+.history-timeline__item--join .history-timeline__icon {
+  color: #34d399;
 }
 
-.history-timeline__time {
-  color: var(--muted);
-  font-size: 0.85rem;
+.history-timeline__item--leave .history-timeline__icon {
+  color: #f87171;
+}
+
+.history-timeline__title {
+  font-weight: 700;
 }
 
 .history {

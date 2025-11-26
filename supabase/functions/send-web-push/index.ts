@@ -300,6 +300,7 @@ const sendNotifications = async (
       url: targetUrl,
       eventId: request.event?.id ?? null,
       type: request.type,
+      actorName: request.actor?.name || request.actor?.email || 'Ein Teilnehmer',
     },
   };
 
