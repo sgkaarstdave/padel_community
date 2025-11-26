@@ -423,6 +423,10 @@ const fetchGuestList = async (eventId) => {
 };
 
 const syncGuestsForEvent = async (eventId, guests) => {
+  if (!eventId) {
+    throw new Error('Es wurde keine gültige Event-ID zum Synchronisieren der Gäste übergeben.');
+  }
+
   const supabase = createSupabaseClient();
   const normalizedGuests = normalizeGuests(guests);
   const { data: existingGuests, error: existingError } = await supabase
@@ -432,6 +436,7 @@ const syncGuestsForEvent = async (eventId, guests) => {
   if (existingError) {
     throw mapSupabaseError(existingError, 'Gäste konnten nicht synchronisiert werden.');
   }
+
   const existingIds = new Set((existingGuests || []).map((guest) => guest.id));
   const incomingIds = new Set(normalizedGuests.map((guest) => guest.id).filter(Boolean));
   const idsToDelete = [...existingIds].filter((id) => !incomingIds.has(id));
@@ -440,6 +445,7 @@ const syncGuestsForEvent = async (eventId, guests) => {
     const { error: deleteError } = await supabase
       .from(GUESTS_TABLE)
       .delete()
+      .eq('event_id', eventId)
       .in('id', idsToDelete);
     if (deleteError) {
       throw mapSupabaseError(deleteError, 'Gäste konnten nicht gelöscht werden.');
@@ -450,23 +456,30 @@ const syncGuestsForEvent = async (eventId, guests) => {
     return [];
   }
 
-  const payload = normalizedGuests.map((guest) => ({
-    ...(guest.id ? { id: guest.id } : {}),
-    event_id: eventId,
-    name: guest.name,
-  }));
-
-  const { data, error } = await supabase
-    .from(GUESTS_TABLE)
-    .upsert(payload, { onConflict: 'id' })
-    .select('id, name, event_id, created_at')
-    .order('created_at', { ascending: true });
-
-  if (error) {
-    throw mapSupabaseError(error, 'Gäste konnten nicht gespeichert werden.');
+  const updates = normalizedGuests.filter((guest) => guest.id);
+  if (updates.length) {
+    const { error: updateError } = await supabase
+      .from(GUESTS_TABLE)
+      .upsert(
+        updates.map((guest) => ({ id: guest.id, name: guest.name, event_id: eventId })),
+        { onConflict: 'id' }
+      );
+    if (updateError) {
+      throw mapSupabaseError(updateError, 'Gäste konnten nicht gespeichert werden.');
+    }
   }
 
-  return data || [];
+  const inserts = normalizedGuests.filter((guest) => !guest.id);
+  if (inserts.length) {
+    const { error: insertError } = await supabase
+      .from(GUESTS_TABLE)
+      .insert(inserts.map((guest) => ({ name: guest.name, event_id: eventId })));
+    if (insertError) {
+      throw mapSupabaseError(insertError, 'Gäste konnten nicht gespeichert werden.');
+    }
+  }
+
+  return fetchGuestList(eventId);
 };
 
 const persistEvent = async (event, action) => {
