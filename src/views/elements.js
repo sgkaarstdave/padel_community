@@ -28,6 +28,9 @@ const elements = {
   get locationFilter() {
     return getElement('locationFilter');
   },
+  get joinableOnlyFilter() {
+    return getElement('joinableOnlyFilter');
+  },
   get activeMatches() {
     return getElement('activeMatches');
   },
