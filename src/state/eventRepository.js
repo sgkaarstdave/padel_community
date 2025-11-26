@@ -239,6 +239,7 @@ const deriveOwnerName = (row, metadata, session) => {
 const decodeMetadata = (row) => {
   const metadata = safeParseMetadata(row.description);
   const participants = sanitizeParticipants(metadata.participants);
+  const guests = normalizeGuests(metadata.guests);
   const durationFromMetadata = Number(metadata.durationHours ?? metadata.duration) || 2;
   const paypalLink = metadata.paypalLink || metadata.paymentLink || '';
   const rsvpDeadline =
@@ -254,6 +255,7 @@ const decodeMetadata = (row) => {
     duration: durationFromMetadata,
     history: sanitizeHistory(metadata.history),
     participants,
+    guests,
     ownerName: metadata.ownerName || '',
     createdAt: metadata.createdAt || row.created_at || new Date().toISOString(),
     city: metadata.city || '',
@@ -270,7 +272,7 @@ const mapRowToEvent = (row, session) => {
         name: entry.name,
         createdAt: entry.created_at || entry.createdAt || null,
       }))
-    : [];
+    : metadata.guests || [];
   const guestCount = guests.length;
   const currentEmail = session?.email?.toLowerCase() || null;
   const createdByEmail = row.created_by_email?.toLowerCase() || null;
@@ -342,6 +344,7 @@ const buildMetadataPayload = (event) => {
   const durationHours = Number(event.durationHours ?? event.duration) || 2;
   const paypalLink = event.paypalLink || event.paymentLink || '';
   const rsvpDeadline = normalizeTimestamp(event.rsvpDeadline || event.deadline || '') || '';
+  const guests = normalizeGuests(event.guests || []);
   return {
     version: METADATA_VERSION,
     totalCost: Number(event.totalCost) || 0,
@@ -354,6 +357,7 @@ const buildMetadataPayload = (event) => {
     duration: durationHours,
     history: sanitizeHistory(event.history),
     participants: sanitizeParticipants(event.participants || []),
+    guests,
     ownerName: event.owner || '',
     createdAt: event.createdAt || new Date().toISOString(),
     city: event.city || '',
