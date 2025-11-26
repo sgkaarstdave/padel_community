@@ -223,6 +223,10 @@ const switchView = (target) => {
       subtitles[target] ||
       'Verwalte deine erstellten Matches, passe Details an und behalte alle Zusagen im Blick.';
   }
+  const lastUpdatedRow = document.getElementById('lastUpdatedRow');
+  if (lastUpdatedRow) {
+    lastUpdatedRow.hidden = target !== 'dashboard';
+  }
 };
 
 const setupNavigation = (onNavigate) => {
