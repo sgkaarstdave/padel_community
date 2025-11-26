@@ -887,6 +887,7 @@ const createEventControllers = ({ refreshUI, navigate, reportError }) => {
             email: currentUser.email.toLowerCase(),
             displayName: currentUser.displayName || currentUser.email,
             joinedAt: createdAt,
+            userId: currentUser.userId || null,
           },
         ]
       : [];
